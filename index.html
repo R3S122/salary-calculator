@@ -17,7 +17,6 @@
       --text-muted: #64748b;
       --border: #e2e8f0;
       --success: #10b981;
-      --warning: #f59e0b;
       --danger: #ef4444;
       --safe-area-top: env(safe-area-inset-top, 0px);
       --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -48,7 +47,7 @@
 
     .header {
       text-align: center;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
     .header h1 {
@@ -61,6 +60,17 @@
       font-size: 12px;
       color: var(--text-muted);
       margin-top: 2px;
+    }
+
+    /* JS無効環境（iPhoneファイルアプリの簡易プレビュー等）への警告バナー */
+    .js-warning {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin-bottom: 14px;
     }
 
     .card {
@@ -76,9 +86,6 @@
       font-size: 15px;
       font-weight: 700;
       margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
     }
 
     /* サマリー */
@@ -125,6 +132,77 @@
       margin-bottom: 5px;
     }
 
+    /* CSSのみで動作する確実なタブ切り替え（JS不要で画面遷移可能） */
+    .tab-radio {
+      display: none;
+    }
+
+    .tab-nav {
+      display: flex;
+      background: #e2e8f0;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 16px;
+    }
+
+    .tab-label {
+      flex: 1;
+      text-align: center;
+      padding: 9px 0;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #radio-upload:checked ~ .container .tab-nav label[for="radio-upload"],
+    #radio-shifts:checked ~ .container .tab-nav label[for="radio-shifts"],
+    #radio-settings:checked ~ .container .tab-nav label[for="radio-settings"] {
+      background: #ffffff;
+      color: var(--text);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    #radio-upload:checked ~ .container #panel-upload { display: block; }
+    #radio-shifts:checked ~ .container #panel-shifts { display: block; }
+    #radio-settings:checked ~ .container #panel-settings { display: block; }
+
+    /* ボトムナビもCSS連携 */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding-bottom: var(--safe-area-bottom);
+      z-index: 100;
+    }
+
+    .bottom-label {
+      flex: 1;
+      padding: 11px 0;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #radio-upload:checked ~ .bottom-nav label[for="radio-upload"],
+    #radio-shifts:checked ~ .bottom-nav label[for="radio-shifts"],
+    #radio-settings:checked ~ .bottom-nav label[for="radio-settings"] {
+      color: var(--primary);
+      font-weight: 700;
+    }
+
     /* ボタン */
     .btn {
       display: inline-flex;
@@ -137,10 +215,6 @@
       border-radius: 12px;
       border: none;
       cursor: pointer;
-    }
-
-    .btn:active {
-      opacity: 0.8;
     }
 
     .btn-primary {
@@ -159,24 +233,19 @@
       width: auto;
     }
 
-    /* ファイル選択エリア */
-    .drop-zone {
+    /* ファイル選択ラベル */
+    .upload-label {
+      display: block;
       border: 2px dashed #93c5fd;
       background: #eff6ff;
       border-radius: 14px;
-      padding: 22px 16px;
+      padding: 24px 16px;
       text-align: center;
-      position: relative;
       cursor: pointer;
     }
 
-    .drop-zone input[type="file"] {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      opacity: 0;
-      cursor: pointer;
+    .upload-label:active {
+      background: #dbeafe;
     }
 
     /* 解析ステータス */
@@ -206,7 +275,6 @@
       transition: width 0.2s;
     }
 
-    /* プレビュー画像確認用 */
     .preview-box {
       display: none;
       margin-top: 12px;
@@ -218,33 +286,6 @@
       max-height: 220px;
       border-radius: 10px;
       border: 1px solid var(--border);
-    }
-
-    /* タブ */
-    .tab-nav {
-      display: flex;
-      background: #e2e8f0;
-      border-radius: 12px;
-      padding: 4px;
-      margin-bottom: 16px;
-    }
-
-    .tab-btn {
-      flex: 1;
-      text-align: center;
-      padding: 8px 0;
-      font-size: 13px;
-      font-weight: 600;
-      border-radius: 8px;
-      border: none;
-      background: transparent;
-      color: var(--text-muted);
-    }
-
-    .tab-btn.active {
-      background: #fff;
-      color: var(--text);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
     /* シフトカード */
@@ -336,271 +377,22 @@
       border: none;
       font-weight: 700;
     }
-
-    /* ボトムナビ */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: #ffffff;
-      border-top: 1px solid var(--border);
-      display: flex;
-      padding-bottom: var(--safe-area-bottom);
-      z-index: 100;
-    }
-
-    .nav-item {
-      flex: 1;
-      padding: 10px 0;
-      text-align: center;
-      font-size: 11px;
-      color: var(--text-muted);
-      border: none;
-      background: transparent;
-    }
-
-    .nav-item.active {
-      color: var(--primary);
-      font-weight: 700;
-    }
   </style>
 </head>
 <body>
 
+  <!-- CSSラジオタブ状態管理（JSが制限されていても画面遷移が動く） -->
+  <input type="radio" name="app-tab" id="radio-upload" class="tab-radio" checked>
+  <input type="radio" name="app-tab" id="radio-shifts" class="tab-radio">
+  <input type="radio" name="app-tab" id="radio-settings" class="tab-radio">
+
   <div class="container">
     <div class="header">
       <h1>勤怠給与計算</h1>
-      <p>完全内蔵OCR解析 & 高精度手当自動計算</p>
+      <p>スクショ文字自動認識 & 手当計算</p>
     </div>
 
-    <!-- サマリーカード -->
-    <div class="card">
-      <div class="summary-grid">
-        <div class="stat-box">
-          <div class="stat-label">予想総支給額 (税込)</div>
-          <div class="stat-val" id="totalPay">¥0</div>
-          <div class="stat-sub" id="workDays">0日出勤</div>
-        </div>
-        <div class="stat-box" style="background:#f0fdf4;">
-          <div class="stat-label" style="color:#166534;">概算手取り (推測)</div>
-          <div class="stat-val" style="color:#15803d;" id="netPay">¥0</div>
-          <div class="stat-sub">控除想定: 15%</div>
-        </div>
-      </div>
-      <div class="detail-list">
-        <div class="detail-row"><span>総労働時間</span><strong id="totalHours">0h 0m</strong></div>
-        <div class="detail-row"><span>深夜時間 (22時〜5時)</span><strong id="nightHours">0h 0m</strong></div>
-        <div class="detail-row"><span>残業時間 (8h超)</span><strong id="overHours">0h 0m</strong></div>
-        <div class="detail-row"><span>手当・交通費合計</span><strong id="totalAllowances">¥0</strong></div>
-      </div>
-    </div>
-
-    <!-- タブ -->
-    <div class="tab-nav">
-      <button class="tab-btn active" id="tabbtn-upload" onclick="switchTab('upload')">📸 画像読み込み</button>
-      <button class="tab-btn" id="tabbtn-shifts" onclick="switchTab('shifts')">📅 シフト一覧</button>
-      <button class="tab-btn" id="tabbtn-settings" onclick="switchTab('settings')">⚙️ 給与設定</button>
-    </div>
-
-    <!-- TAB 1: アップロード -->
-    <div id="tab-upload">
-      <div class="card">
-        <div class="card-title">勤務実績のスクショを読み込む</div>
-        <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
-          外部サーバーを使わず端末内で画像を直接解析するため、オフラインやローカルファイルでも確実に動作します。
-        </p>
-
-        <div class="input-group" style="margin-bottom:12px;">
-          <label>対象年</label>
-          <input type="number" inputmode="numeric" id="targetYear" class="input-control" value="2026">
-        </div>
-
-        <div class="drop-zone" id="dropZone">
-          <div style="font-size:28px; margin-bottom:4px;">📷</div>
-          <div style="font-weight:700; color:var(--primary); font-size:15px;">タップしてスクショを選択</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">または画像をここに貼り付け (Ctrl+V / ペースト)</div>
-          <input type="file" accept="image/*" onchange="handleImageUpload(event)">
-        </div>
-
-        <div id="ocrStatus" class="ocr-status">
-          <div id="ocrStatusText">画像を解析しています...</div>
-          <div class="progress-bar-bg">
-            <div id="ocrProgress" class="progress-bar-fill"></div>
-          </div>
-        </div>
-
-        <div id="previewBox" class="preview-box">
-          <img id="previewImg" src="" alt="プレビュー">
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 2: シフト一覧 -->
-    <div id="tab-shifts" style="display:none;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <span style="font-size:14px; font-weight:700;">登録シフト一覧</span>
-        <div>
-          <button class="btn btn-secondary btn-sm" style="margin-right:6px; color:var(--danger);" onclick="clearAllShifts()">全消去</button>
-          <button class="btn btn-primary btn-sm" onclick="addNewShift()">＋ 手動追加</button>
-        </div>
-      </div>
-      <div id="shiftList"></div>
-    </div>
-
-    <!-- TAB 3: 設定 -->
-    <div id="tab-settings" style="display:none;">
-      <div class="card">
-        <div class="card-title">基本給与設定</div>
-        <div class="input-group" style="margin-bottom:12px;">
-          <label>基本時給 (円)</label>
-          <input type="number" inputmode="numeric" id="cfg-base" class="input-control" value="1100" onchange="saveConfig()">
-        </div>
-        <div class="input-group" style="margin-bottom:12px;">
-          <label>月額 交通費 (円/月)</label>
-          <input type="number" inputmode="numeric" id="cfg-transit" class="input-control" value="5000" onchange="saveConfig()">
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">曜日・休日手当設定 (時給加算)</div>
-        <div class="input-group" style="margin-bottom:12px;">
-          <label>土曜日手当 (+円/時間)</label>
-          <input type="number" inputmode="numeric" id="cfg-sat" class="input-control" value="50" onchange="saveConfig()">
-        </div>
-        <div class="input-group" style="margin-bottom:12px;">
-          <label>日・祝日手当 (+円/時間)</label>
-          <input type="number" inputmode="numeric" id="cfg-sun" class="input-control" value="100" onchange="saveConfig()">
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">特別期間手当 (お盆・正月等)</div>
-        <div class="input-group" style="margin-bottom:8px;">
-          <label>手当名称 (例: お盆手当)</label>
-          <input type="text" id="cfg-sp-name" class="input-control" value="お盆・正月手当" onchange="saveConfig()">
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
-          <div class="input-group">
-            <label>開始日</label>
-            <input type="date" id="cfg-sp-start" class="input-control" value="2026-08-13" onchange="saveConfig()">
-          </div>
-          <div class="input-group">
-            <label>終了日</label>
-            <input type="date" id="cfg-sp-end" class="input-control" value="2026-08-16" onchange="saveConfig()">
-          </div>
-        </div>
-        <div class="input-group" style="margin-bottom:12px;">
-          <label>加算手当 (+円/時間)</label>
-          <input type="number" inputmode="numeric" id="cfg-sp-allow" class="input-control" value="200" onchange="saveConfig()">
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ボトムナビ -->
-  <div class="bottom-nav">
-    <button class="nav-item active" id="nav-upload" onclick="switchTab('upload')">📸 読み込み</button>
-    <button class="nav-item" id="nav-shifts" onclick="switchTab('shifts')">📅 シフト</button>
-    <button class="nav-item" id="nav-settings" onclick="switchTab('settings')">⚙️ 設定</button>
-  </div>
-
-  <!-- 内部処理用Canvas -->
-  <canvas id="ocrCanvas" style="display:none;"></canvas>
-
-  <script>
-    let shifts = [];
-    let config = {
-      baseRate: 1100,
-      transitMonthly: 5000,
-      satAllowance: 50,
-      sunAllowance: 100,
-      spName: 'お盆・正月手当',
-      spStart: '2026-08-13',
-      spEnd: '2026-08-16',
-      spAllowance: 200
-    };
-
-    window.addEventListener('DOMContentLoaded', () => {
-      loadConfig();
-      calculateAll();
-
-      // クリップボードからの画像貼り付け（ペースト）にも対応
-      window.addEventListener('paste', (e) => {
-        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-        for (let item of items) {
-          if (item.type.indexOf('image') === 0) {
-            const file = item.getAsFile();
-            processImageFile(file);
-          }
-        }
-      });
-    });
-
-    function switchTab(tabName) {
-      document.getElementById('tab-upload').style.display = tabName === 'upload' ? 'block' : 'none';
-      document.getElementById('tab-shifts').style.display = tabName === 'shifts' ? 'block' : 'none';
-      document.getElementById('tab-settings').style.display = tabName === 'settings' ? 'block' : 'none';
-
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      document.getElementById(`tabbtn-${tabName}`).classList.add('active');
-
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-      document.getElementById(`nav-${tabName}`).classList.add('active');
-    }
-
-    function saveConfig() {
-      config.baseRate = Number(document.getElementById('cfg-base').value) || 0;
-      config.transitMonthly = Number(document.getElementById('cfg-transit').value) || 0;
-      config.satAllowance = Number(document.getElementById('cfg-sat').value) || 0;
-      config.sunAllowance = Number(document.getElementById('cfg-sun').value) || 0;
-      config.spName = document.getElementById('cfg-sp-name').value;
-      config.spStart = document.getElementById('cfg-sp-start').value;
-      config.spEnd = document.getElementById('cfg-sp-end').value;
-      config.spAllowance = Number(document.getElementById('cfg-sp-allow').value) || 0;
-      calculateAll();
-    }
-
-    function loadConfig() {
-      document.getElementById('cfg-base').value = config.baseRate;
-      document.getElementById('cfg-transit').value = config.transitMonthly;
-      document.getElementById('cfg-sat').value = config.satAllowance;
-      document.getElementById('cfg-sun').value = config.sunAllowance;
-      document.getElementById('cfg-sp-name').value = config.spName;
-      document.getElementById('cfg-sp-start').value = config.spStart;
-      document.getElementById('cfg-sp-end').value = config.spEnd;
-      document.getElementById('cfg-sp-allow').value = config.spAllowance;
-    }
-
-    function timeToMins(str) {
-      if (!str) return 0;
-      const [h, m] = str.split(':').map(Number);
-      return (h || 0) * 60 + (m || 0);
-    }
-
-    function minsToHM(mins) {
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      return `${h}h ${m}m`;
-    }
-
-    function calculateAll() {
-      let totalPay = 0;
-      let totalMins = 0;
-      let nightMins = 0;
-      let overMins = 0;
-      let totalAllowances = 0;
-
-      shifts.forEach(s => {
-        const start = timeToMins(s.start);
-        let end = timeToMins(s.end);
-        if (end < start) end += 24 * 60;
-
-        const breakM = timeToMins(s.breakTime);
-        const workM = Math.max(0, end - start - breakM);
-
-        let shiftPay = (workM / 60) * config.baseRate;
-
-        // 深夜（22:00〜29:00）
-        const nightStart = 22 * 60;
-        const nightEnd
+    <!-- JSが動作すると自動的に非表示になる警告メッセージ -->
+    <div id="jsWarningBox" class="js-warning">
+      ⚠️ <strong>アプリ機能が制限されたプレビュー画面で開かれています</strong><br>
+      iPhoneの「ファイル」アプリ内のプレ
