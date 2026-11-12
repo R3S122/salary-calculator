@@ -158,6 +158,37 @@
       cursor: pointer;
     }
 
+    /* 休憩時間クイック加算ボタン群 */
+    .quick-break-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .btn-quick-break {
+      flex: 1;
+      background: #eef4ff;
+      color: #007aff;
+      border: 1px solid #cce0ff;
+      border-radius: 8px;
+      padding: 6px 0;
+      font-size: 12px !important;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .btn-quick-break:active {
+      background: #007aff;
+      color: #ffffff;
+    }
+
+    .btn-quick-reset {
+      background: #f2f2f7;
+      color: #666;
+      border-color: #d1d1d6;
+    }
+
     .form-group { margin-bottom: 12px; }
     .form-group label {
       display: block;
@@ -316,7 +347,7 @@
 
   <header>
     <h1>給料計算アプリ</h1>
-    <span class="badge">専用表解析 v11</span>
+    <span class="badge">専用表解析 v12</span>
   </header>
 
   <div id="toastBanner" class="toast-banner">✅ 保存しました</div>
@@ -405,27 +436,28 @@
             </select>
           </div>
         </div>
-        <div class="grid-3">
-          <div class="form-group">
+        <div class="grid-3" style="margin-bottom: 6px;">
+          <div class="form-group" style="margin-bottom: 0;">
             <label>開始</label>
             <input type="time" id="newStart" value="09:00" class="form-control">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom: 0;">
             <label>終了</label>
             <input type="time" id="newEnd" value="18:00" class="form-control">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom: 0;">
             <label>休憩(分)</label>
-            <select id="newBreak" class="form-control">
-              <option value="0">0分</option>
-              <option value="15">15分</option>
-              <option value="30">30分</option>
-              <option value="45">45分</option>
-              <option value="60" selected>60分</option>
-              <option value="75">75分</option>
-              <option value="90">90分</option>
-              <option value="120">120分</option>
-            </select>
+            <input type="number" id="newBreak" value="0" inputmode="numeric" class="form-control">
+          </div>
+        </div>
+        <!-- 休憩ワンタップ加算ボタン -->
+        <div class="form-group">
+          <div class="quick-break-row" id="newBreakQuickBtns">
+            <button type="button" class="btn-quick-break btn-quick-reset" data-val="0">0分</button>
+            <button type="button" class="btn-quick-break" data-add="15">+15分</button>
+            <button type="button" class="btn-quick-break" data-add="30">+30分</button>
+            <button type="button" class="btn-quick-break" data-add="45">+45分</button>
+            <button type="button" class="btn-quick-break" data-add="60">+60分</button>
           </div>
         </div>
         <button class="btn-emerald" id="addShiftBtn">✓ 確定してシフトを追加</button>
@@ -618,6 +650,18 @@
       bindCfg('cfgSat', 'sat');
       bindCfg('cfgSun', 'sun');
 
+      // 新規シフト追加の休憩クイック加算ボタン
+      document.querySelectorAll('#newBreakQuickBtns button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const inp = document.getElementById('newBreak');
+          if (btn.dataset.val !== undefined) {
+            inp.value = Number(btn.dataset.val);
+          } else if (btn.dataset.add) {
+            inp.value = (Number(inp.value) || 0) + Number(btn.dataset.add);
+          }
+        });
+      });
+
       document.getElementById('addShiftBtn').addEventListener('click', addShift);
       document.getElementById('clearShiftsBtn').addEventListener('click', clearShifts);
       document.getElementById('addPeriodBtn').addEventListener('click', addPeriod);
@@ -733,7 +777,6 @@
       }
     }
 
-    // 画像から「長い直線（表の枠線）」と「背景色」を削除して文字を太くくっきりさせる処理
     function removeGridLinesAndBinarize(file) {
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -759,7 +802,6 @@
               binary[i] = (brightness < 155) ? 1 : 0;
             }
 
-            // 水平方向の枠線を検出して消去
             const minHLine = Math.floor(w * 0.20);
             for (let y = 0; y < h; y++) {
               let run = 0;
@@ -778,7 +820,6 @@
               }
             }
 
-            // 垂直方向の枠線を検出して消去
             const minVLine = Math.floor(h * 0.12);
             for (let x = 0; x < w; x++) {
               let run = 0;
@@ -921,7 +962,6 @@
       return results;
     }
 
-    // 縦並び・途中改行・2桁日付対応テキストパーサー（貼り付け用）
     function parseAttendanceText(rawText, defaultYear) {
       const results = [];
       let detectedYear = defaultYear;
@@ -983,7 +1023,6 @@
       return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
     }
 
-    // 給与計算ロジック
     function calcAll() {
       let totalWorkMins = 0;
       let daysCount = 0;
@@ -1106,8 +1145,6 @@
 
       shifts.sort((a,b) => new Date(a.date) - new Date(b.date));
 
-      const breakOptions = [0, 15, 30, 45, 60, 75, 90, 120];
-
       shifts.forEach((s, idx) => {
         const div = document.createElement('div');
         const isJustSaved = (savedDate && s.date === savedDate);
@@ -1128,16 +1165,6 @@
           }
         });
 
-        // 15分単位以外の端数（OCRや過去の入力など）がある場合も選択肢に保持
-        const currentBreak = Number(s.breakMins) || 0;
-        const opts = breakOptions.includes(currentBreak)
-          ? breakOptions
-          : [...breakOptions, currentBreak].sort((a, b) => a - b);
-
-        const optionsHtml = opts.map(min =>
-          `<option value="${min}" ${currentBreak === min ? 'selected' : ''}>${min}分</option>`
-        ).join('');
-
         div.innerHTML = `
           <div class="shift-header">
             <div>
@@ -1157,10 +1184,15 @@
             </div>
             <div>
               <label style="font-size:10px; color:#666;">休憩(分)</label>
-              <select class="break-inp form-control" style="padding:4px;">
-                ${optionsHtml}
-              </select>
+              <input type="number" value="${s.breakMins}" inputmode="numeric" class="break-inp form-control" style="padding:4px;">
             </div>
+          </div>
+          <div class="quick-break-row card-quick-breaks">
+            <button type="button" class="btn-quick-break btn-quick-reset" data-val="0">0分</button>
+            <button type="button" class="btn-quick-break" data-add="15">+15分</button>
+            <button type="button" class="btn-quick-break" data-add="30">+30分</button>
+            <button type="button" class="btn-quick-break" data-add="45">+45分</button>
+            <button type="button" class="btn-quick-break" data-add="60">+60分</button>
           </div>
           <button class="btn-emerald save-btn ${isJustSaved ? 'btn-saved' : ''}" data-idx="${idx}">
             ${isJustSaved ? '✅ 保存しました！（給与再計算済み）' : '✓ 確定保存'}
@@ -1177,7 +1209,19 @@
         };
 
         div.querySelectorAll('input').forEach(inp => inp.addEventListener('input', markDirty));
-        div.querySelectorAll('select').forEach(sel => sel.addEventListener('change', markDirty));
+
+        // カード内の休憩クイック加算ボタン
+        div.querySelectorAll('.card-quick-breaks button').forEach(qBtn => {
+          qBtn.addEventListener('click', () => {
+            const breakInp = div.querySelector('.break-inp');
+            if (qBtn.dataset.val !== undefined) {
+              breakInp.value = Number(qBtn.dataset.val);
+            } else if (qBtn.dataset.add) {
+              breakInp.value = (Number(breakInp.value) || 0) + Number(qBtn.dataset.add);
+            }
+            markDirty();
+          });
+        });
 
         if (isJustSaved) {
           setTimeout(() => {
