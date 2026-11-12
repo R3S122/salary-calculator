@@ -70,6 +70,7 @@
 </head>
 <body class="bg-slate-100 text-slate-900 min-h-full flex flex-col antialiased">
 
+    <!-- Header -->
     <header class="bg-slate-900/95 backdrop-blur-md text-white sticky top-0 z-40 shadow-sm pt-2 pb-3 px-4 border-b border-slate-800">
         <div class="max-w-md mx-auto flex items-center justify-between">
             <div class="flex items-center space-x-2.5">
@@ -89,6 +90,7 @@
 
     <main class="max-w-md mx-auto w-full px-3 pt-3 flex-1 space-y-4 ios-scroll">
 
+        <!-- TAB 1: Upload & Summary -->
         <section id="tab-upload" class="tab-content space-y-4">
             
             <!-- Upload Box (Initial Empty State) -->
@@ -129,6 +131,7 @@
                 <p id="ocr-status-text" class="text-[11px] text-slate-400">日付・開始時間・終了時間・休憩時間を高精度スキャンしています...</p>
             </div>
 
+            <!-- Active Data Summary (Visible when shifts exist) -->
             <div id="summary-card" class="hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 rounded-3xl p-5 text-white shadow-xl relative overflow-hidden">
                 <div class="flex justify-between items-start">
                     <span class="text-xs font-semibold uppercase tracking-wider text-blue-200">予想総支給額 (税込)</span>
@@ -309,6 +312,7 @@
     </div>
 
     <script>
+        // Sample preset data for September 2026
         const SAMPLE_SEPTEMBER_2026 = [
             { id: 1, isoDate: "2026-09-01", type: "出勤", start: "16:54", end: "21:06", breakTime: "0:00" },
             { id: 2, isoDate: "2026-09-04", type: "出勤", start: "17:32", end: "21:26", breakTime: "0:00" },
@@ -333,6 +337,7 @@
 
         const WEEKDAYS_JP = ["日", "月", "火", "水", "木", "金", "土"];
 
+        // ISO日付(YYYY-MM-DD)から表示文字列(M/D(曜))への変換
         function formatIsoToDisplay(isoStr) {
             if (!isoStr) return "";
             const d = new Date(isoStr);
@@ -343,6 +348,7 @@
             return `${m}/${day}(${w})`;
         }
 
+        // テキスト(例: "9/1(火)" or "9/1")をYYYY-MM-DDに可能な限り正規化
         function normalizeToIsoDate(textStr, year = 2026) {
             if (!textStr) return new Date().toISOString().split('T')[0];
             if (/^\d{4}-\d{2}-\d{2}$/.test(textStr)) return textStr;
@@ -404,6 +410,7 @@
             showToast('データをすべて初期化しました');
         }
 
+        // --- GEMINI VISION OCR API INTEGRATION ---
         async function processUploadedImage(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -525,6 +532,7 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             return 'weekday';
         }
 
+        // 特別期間手当（お盆・正月など）にヒットするか判定
         function matchSpecialAllowance(isoDateStr) {
             if (!isoDateStr) return null;
             const d = new Date(isoDateStr);
@@ -560,9 +568,10 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                 let endMins = parseTimeToMinutes(s.end);
                 let breakMins = parseTimeToMinutes(s.breakTime);
 
-                if (endMins < startMins) endMins += 24 * 60;
+                if (endMins < startMins) endMins += 24 * 60; // Midnight rollover
                 let workMins = Math.max(0, (endMins - startMins) - breakMins);
 
+                // 土日祝手当
                 const dayType = getDayTypeFromIso(s.isoDate);
                 let holidayHourlyAdd = 0;
                 if (dayType === 'saturday') holidayHourlyAdd = satAllowance;
@@ -570,6 +579,7 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
 
                 let holidayAllowancePay = (workMins / 60) * holidayHourlyAdd;
 
+                // 特別期間手当 (お盆・正月など)
                 const matchedSpecial = matchSpecialAllowance(s.isoDate);
                 let specialAllowancePay = 0;
                 if (matchedSpecial) {
@@ -579,11 +589,13 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                     s.specialBadge = null;
                 }
 
+                // 深夜手当 (22:00〜05:00)
                 let nightMins = 0;
                 let oStart = Math.max(startMins, 22 * 60);
                 let oEnd = Math.min(endMins, 29 * 60);
                 if (oStart < oEnd) nightMins = Math.max(0, oEnd - oStart - breakMins);
 
+                // 残業手当 (>8h)
                 let overMins = Math.max(0, workMins - 480);
 
                 let basePay = (workMins / 60) * baseRate;
@@ -612,6 +624,7 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             const grossPay = totalBasePaySum + totalHolidayAllowanceSum + totalSpecialAllowanceSum + totalNightExtraSum + totalOverExtraSum + totalTransport;
             const netPay = grossPay * 0.967;
 
+            // UI Update
             const summaryCard = document.getElementById('summary-card');
             const statsGrid = document.getElementById('stats-grid');
             const chartBox = document.getElementById('chart-box');
@@ -668,7 +681,6 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                 const displayDate = formatIsoToDisplay(draft.isoDate);
 
                 const card = document.createElement('div');
-                card.id = `shift-card-${s.id}`;
                 card.className = `bg-white rounded-2xl p-3.5 shadow-sm border transition-all ${isModified ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200/80'}`;
                 card.innerHTML = `
                     <div class="flex justify-between items-center border-b border-slate-100 pb-2">
@@ -676,7 +688,7 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                             <!-- 日付選択カレンダー -->
                             <div class="relative flex items-center bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-xl cursor-pointer active-scale">
                                 <i class="fa-solid fa-calendar text-blue-600 text-xs mr-1.5"></i>
-                                <span id="date-label-${s.id}" class="font-bold text-slate-800 text-xs">${displayDate || '日付選択'}</span>
+                                <span class="font-bold text-slate-800 text-xs">${displayDate || '日付選択'}</span>
                                 <input type="date" value="${draft.isoDate || ''}" onchange="onDraftChange(${s.id}, 'isoDate', this.value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
                             </div>
                             ${badgeHtml}
@@ -684,13 +696,11 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                         </div>
                         <div class="flex items-center space-x-2">
                             <span class="text-sm font-extrabold text-blue-600">${formatCurrency(s.calculatedPay || 0)}</span>
-                            <div id="confirm-btn-container-${s.id}">
-                                ${isModified ? `
-                                    <button onclick="confirmShiftChange(${s.id})" class="bg-emerald-500 text-white text-xs px-2.5 py-1 rounded-lg font-bold active-scale shadow-sm flex items-center">
-                                        <i class="fa-solid fa-check mr-1"></i>確定
-                                    </button>
-                                ` : ''}
-                            </div>
+                            ${isModified ? `
+                                <button onclick="confirmShiftChange(${s.id})" class="bg-emerald-500 text-white text-xs px-2.5 py-1 rounded-lg font-bold active-scale shadow-sm flex items-center">
+                                    <i class="fa-solid fa-check mr-1"></i>確定
+                                </button>
+                            ` : ''}
                             <button onclick="deleteRow(${s.id})" class="text-slate-300 hover:text-red-500 p-1 active-scale"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     </div>
@@ -713,6 +723,7 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             });
         }
 
+        // Draft state handler during drag/typing
         function onDraftChange(id, field, value) {
             const shift = shifts.find(s => s.id === id);
             if (!shift) return;
@@ -721,43 +732,10 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                 draftShifts[id] = { ...shift };
             }
             draftShifts[id][field] = value;
-
-            const draft = draftShifts[id];
-            const isModified = (draft.start !== shift.start || draft.end !== shift.end || draft.breakTime !== shift.breakTime || draft.isoDate !== shift.isoDate);
-
-            // 1. 日付ラベル表示のピンポイント更新
-            if (field === 'isoDate') {
-                const dateLabel = document.getElementById(`date-label-${id}`);
-                if (dateLabel) {
-                    dateLabel.innerText = formatIsoToDisplay(value) || '日付選択';
-                }
-            }
-
-            // 2. 確定ボタンのDOM更新（フォーカスを妨げない部分更新）
-            const confirmBtnContainer = document.getElementById(`confirm-btn-container-${id}`);
-            if (confirmBtnContainer) {
-                if (isModified) {
-                    confirmBtnContainer.innerHTML = `
-                        <button onclick="confirmShiftChange(${id})" class="bg-emerald-500 text-white text-xs px-2.5 py-1 rounded-lg font-bold active-scale shadow-sm flex items-center">
-                            <i class="fa-solid fa-check mr-1"></i>確定
-                        </button>
-                    `;
-                } else {
-                    confirmBtnContainer.innerHTML = '';
-                }
-            }
-
-            // 3. カード枠線の強調スタイル切り替え
-            const cardEl = document.getElementById(`shift-card-${id}`);
-            if (cardEl) {
-                if (isModified) {
-                    cardEl.className = "bg-white rounded-2xl p-3.5 shadow-sm border border-blue-500 ring-2 ring-blue-100 transition-all";
-                } else {
-                    cardEl.className = "bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 transition-all";
-                }
-            }
+            renderShiftCards(); // Re-render to reveal the "確定" checkmark button and update date display
         }
 
+        // Confirm button click handler
         function confirmShiftChange(id) {
             if (draftShifts[id]) {
                 const shiftIndex = shifts.findIndex(s => s.id === id);
@@ -785,7 +763,7 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             const todayIso = new Date().toISOString().split('T')[0];
             const newShift = { id: newId, isoDate: todayIso, type: "出勤", start: "09:00", end: "18:00", breakTime: "1:00" };
             shifts.push(newShift);
-            draftShifts[newId] = { ...newShift };
+            draftShifts[newId] = { ...newShift }; // Start as draft requiring confirmation
             saveState();
             renderShiftCards();
             recalculateAll();
@@ -801,7 +779,7 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                 return;
             }
 
-            specialAllowances.forEach((sp) => {
+            specialAllowances.forEach((sp, idx) => {
                 const row = document.createElement('div');
                 row.className = "bg-white p-2.5 rounded-xl border border-amber-200/60 space-y-2 text-xs";
                 row.innerHTML = `
