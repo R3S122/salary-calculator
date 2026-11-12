@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- iOS Web App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="給与計算OCR">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="apple-touch-icon" href="https://placehold.co/180x180/2563eb/ffffff?text=給与">
+
+    <title>給与計算 - スクショ読み込み (Gemini AI Vision)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Noto Sans JP', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: calc(env(safe-area-inset-bottom) + 75px);
+        }
+
+        /* Prevent iPhone input auto-zoom on focus */
+        input, select, textarea {
+            font-size: 16px !important;
+            user-select: text !important;
+        }
+
+        .ios-scroll {
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .ios-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .active-scale:active {
+            transform: scale(0.97);
+            transition: transform 0.1s ease;
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-pulse-subtle {
+            animation: pulse-subtle 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-full flex flex-col antialiased">
+
+    <header class="bg-slate-900/95 backdrop-blur-md text-white sticky top-0 z-40 shadow-sm pt-2 pb-3 px-4 border-b border-slate-800">
+        <div class="max-w-md mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-2.5">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md text-white font-bold text-lg">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-base tracking-tight leading-tight">勤怠スクショ給与計算</h1>
+                    <p class="text-[10px] text-blue-400 font-medium">Gemini AI 自動認識 & 高精度手当計算</p>
+                </div>
+            </div>
+            <button onclick="clearAllData()" class="text-xs text-slate-400 hover:text-red-400 active-scale px-2 py-1 rounded">
+                <i class="fa-solid fa-rotate-left mr-1"></i>リセット
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto w-full px-3 pt-3 flex-1 space-y-4 ios-scroll">
+
+        <!-- TAB: Upload & Summary -->
+        <section id="tab-upload" class="tab-content space-y-4">
+            
+            <div id="upload-box" class="bg-white rounded-3xl p-6 shadow-sm border-2 border-dashed border-blue-300 text-center space-y-4 relative overflow-hidden">
+                <div class="w-16 h-16 mx-auto bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-2xl shadow-inner">
+                    <i class="fa-solid fa-file-image"></i>
+                </div>
+                <div>
+                    <h2 class="font-bold text-slate-800 text-lg">勤務実績画像を読み込む</h2>
+                    <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                        タイムカードのスクショから<br><b class="text-blue-600">日付・出退勤・休憩時間</b>を自動解析します
+                    </p>
+                </div>
+
+                <div class="space-y-2 pt-1">
+                    <button onclick="triggerFileInput()" class="gradient-btn text-white w-full py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-blue-500/20 active-scale flex items-center justify-center">
+                        <i class="fa-solid fa-camera mr-2 text-base"></i>スクショ・写真を選択
+                    </button>
+                    <input type="file" id="image-input" accept="image/*" class="hidden" onchange="processUploadedImage(event)">
+
+                    <button onclick="loadSampleImagePreset()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-xs font-bold active-scale transition-colors flex items-center justify-center">
+                        <i class="fa-solid fa-vial mr-1.5 text-blue-600"></i>提供スクショデータ(2026年9月分)で試す
+                    </button>
+                </div>
+            </div>
+
+            <div id="ocr-progress" class="hidden bg-slate-900 text-white rounded-3xl p-5 shadow-xl space-y-3 animate-pulse-subtle">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-blue-400 flex items-center">
+                        <i class="fa-solid fa-spinner fa-spin mr-2"></i>Gemini AIが画像を解析中
+                    </span>
+                    <span id="ocr-status-percent" class="text-xs font-mono text-slate-400">日付/時間を抽出...</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div id="ocr-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full w-2/3 transition-all duration-500"></div>
+                </div>
+                <p id="ocr-status-text" class="text-[11px] text-slate-400">勤務時間と合計休憩時間をスキャンしています...</p>
+            </div>
+
+            <div id="summary-card" class="hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-900 rounded-3xl p-5 text-white shadow-xl relative overflow-hidden">
+                <div class="flex justify-between items-start">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-blue-200">予想総支給額 (税込)</span>
+                    <span id="badge-days-hours" class="text-[11px] bg-white/20 px-2.5 py-0.5 rounded-full font-medium backdrop-blur-md">0日出勤</span>
+                </div>
+                <div class="mt-2 flex items-baseline">
+                    <span class="text-3xl sm:text-4xl font-black tracking-tight" id="kpi-gross-pay">¥0</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/15 text-xs text-blue-100">
+                    <div>
+                        <span class="text-blue-300 text-[10px] block">概算手取り (推測)</span>
+                        <span class="font-bold text-base text-white" id="kpi-net-pay">¥0</span>
+                    </div>
+                    <div>
+                        <span class="text-blue-300 text-[10px] block">各種手当・交通費合計</span>
+                        <span class="font-bold text-base text-emerald-300" id="kpi-allowance-total">¥0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="stats-grid" class="hidden grid grid-cols-3 gap-2 text-center">
+                <div class="ios-card rounded-2xl p-3 shadow-sm">
+                    <span class="text-[10px] font-medium text-slate-500 block">総労働時間</span>
+                    <span class="text-sm font-bold text-slate-800" id="kpi-total-hours">0h 0m</span>
+                </div>
+                <div class="ios-card rounded-2xl p-3 shadow-sm">
+                    <span class="text-[10px] font-medium text-indigo-600 block">深夜時間(22時~)</span>
+                    <span class="text-sm font-bold text-indigo-700" id="kpi-night-hours">0h 0m</span>
+                </div>
+                <div class="ios-card rounded-2xl p-3 shadow-sm">
+                    <span class="text-[10px] font-medium text-emerald-600 block">残業時間(8h超)</span>
+                    <span class="text-sm font-bold text-emerald-700" id="kpi-over-hours">0h 0m</span>
+                </div>
+            </div>
+
+            <div id="chart-box" class="hidden bg-white rounded-3xl p-4 shadow-sm border border-slate-200 space-y-3">
+                <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                    <span><i class="fa-solid fa-chart-pie mr-1 text-blue-600"></i>給与内訳グラフ</span>
+                </h2>
+                <div class="relative h-48 flex items-center justify-center">
+                    <canvas id="payChart"></canvas>
+                </div>
+            </div>
+
+        </section>
+
+        <section id="tab-shifts" class="tab-content space-y-3 hidden">
+            <div class="flex justify-between items-center px-1">
+                <div>
+                    <h2 class="font-bold text-slate-800 text-sm">解析済シフト一覧</h2>
+                    <p class="text-[11px] text-slate-500">変更時は<b class="text-blue-600">「確定（✓）」</b>を押して反映します</p>
+                </div>
+                <button onclick="addNewRow()" class="active-scale bg-blue-600 text-white text-xs px-3 py-1.5 rounded-full font-semibold flex items-center shadow-sm">
+                    <i class="fa-solid fa-plus mr-1"></i>シフト手動追加
+                </button>
+            </div>
+
+            <div id="shift-cards-container" class="space-y-2.5">
+                <!-- Dynamic Shift Rows -->
+            </div>
+
+            <div id="empty-shifts-msg" class="bg-white rounded-3xl p-8 text-center text-slate-400 space-y-2 border border-slate-200">
+                <i class="fa-solid fa-calendar-xmark text-4xl text-slate-300 mb-1"></i>
+                <p class="text-xs font-bold text-slate-600">登録されているシフトがありません</p>
+                <p class="text-[11px]">「取込/集計」タブから勤怠のスクリーンショットを読み込んでください。</p>
+            </div>
+        </section>
+
+        <section id="tab-settings" class="tab-content space-y-3 hidden">
+            <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <h2 class="font-bold text-sm text-slate-800 border-b border-slate-100 pb-2 flex items-center">
+                    <i class="fa-solid fa-sliders text-blue-600 mr-2"></i>基本時給 & 各種手当の設定
+                </h2>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">基本時給 (円)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-bold">¥</span>
+                        <input type="number" id="setting-hourly-rate" value="1200" step="10" inputmode="numeric" pattern="[0-9]*" onchange="saveSettingsAndRecalc()" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800">
+                    </div>
+                </div>
+
+                <div class="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100/80 space-y-3">
+                    <h3 class="text-xs font-bold text-blue-900 flex items-center">
+                        <i class="fa-solid fa-calendar-plus text-blue-600 mr-1.5"></i>休日加算手当 (時給への上乗せ)
+                    </h3>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">土曜日 (+円/時)</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-semibold text-xs">¥</span>
+                                <input type="number" id="setting-sat-allowance" value="100" step="50" inputmode="numeric" pattern="[0-9]*" onchange="saveSettingsAndRecalc()" class="w-full pl-7 pr-2 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">日曜・祝日 (+円/時)</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-semibold text-xs">¥</span>
+                                <input type="number" id="setting-sun-allowance" value="200" step="50" inputmode="numeric" pattern="[0-9]*" onchange="saveSettingsAndRecalc()" class="w-full pl-7 pr-2 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200/80 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xs font-bold text-amber-900 flex items-center">
+                            <i class="fa-solid fa-gifts text-amber-600 mr-1.5"></i>特別期間手当 (お盆・正月・GWなど)
+                        </h3>
+                        <button onclick="addSpecialAllowanceRow()" class="text-[11px] bg-amber-600 hover:bg-amber-700 text-white font-bold px-2 py-1 rounded-lg active-scale">
+                            <i class="fa-solid fa-plus mr-1"></i>追加
+                        </button>
+                    </div>
+
+                    <div id="special-allowance-list" class="space-y-2">
+                        <!-- Dynamic Special Allowance Items -->
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">深夜手当 (22時〜)</label>
+                        <select id="setting-night-rate" onchange="saveSettingsAndRecalc()" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800">
+                            <option value="1.25" selected>+25% (1.25倍)</option>
+                            <option value="1.30">+30% (1.30倍)</option>
+                            <option value="1.00">割増なし (1.00倍)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">残業手当 (1日8h超)</label>
+                        <select id="setting-over-rate" onchange="saveSettingsAndRecalc()" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800">
+                            <option value="1.25" selected>+25% (1.25倍)</option>
+                            <option value="1.30">+30% (1.30倍)</option>
+                            <option value="1.00">割増なし (1.00倍)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-100">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">交通費支給額 (月あたり)</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-bold">¥</span>
+                        <input type="number" id="setting-transport-amount" value="5000" step="500" inputmode="numeric" pattern="[0-9]*" onchange="saveSettingsAndRecalc()" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-200/80 z-50 px-6 py-2 shadow-lg">
+        <div class="max-w-md mx-auto flex justify-around items-center">
+            <button onclick="switchTab('upload')" id="nav-btn-upload" class="flex flex-col items-center space-y-1 text-blue-600">
+                <i class="fa-solid fa-file-arrow-up text-lg"></i>
+                <span class="text-[10px] font-bold">取込/集計</span>
+            </button>
+            <button onclick="switchTab('shifts')" id="nav-btn-shifts" class="flex flex-col items-center space-y-1 text-slate-400">
+                <i class="fa-solid fa-calendar-days text-lg"></i>
+                <span class="text-[10px] font-bold">シフト明細</span>
+            </button>
+            <button onclick="switchTab('settings')" id="nav-btn-settings" class="flex flex-col items-center space-y-1 text-slate-400">
+                <i class="fa-solid fa-sliders text-lg"></i>
+                <span class="text-[10px] font-bold">給与設定</span>
+            </button>
+        </div>
+    </nav>
+
+    <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 bg-slate-900/95 text-white text-xs px-4 py-2.5 rounded-full shadow-2xl transition-all duration-300 opacity-0 transform -translate-y-4 pointer-events-none z-50 flex items-center space-x-2 border border-slate-700/50">
+        <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+        <span id="toast-message" class="font-medium">更新しました</span>
+    </div>
+
+    <script>
+        const SAMPLE_SEPTEMBER_2026 = [
+            { id: 1, isoDate: "2026-09-01", type: "出勤", start: "16:54", end: "21:06", breakTime: "0:00" },
+            { id: 2, isoDate: "2026-09-04", type: "出勤", start: "17:32", end: "21:26", breakTime: "0:00" },
+            { id: 3, isoDate: "2026-09-05", type: "出勤", start: "13:50", end: "23:52", breakTime: "0:45" },
+            { id: 4, isoDate: "2026-09-10", type: "出勤", start: "17:47", end: "21:37", breakTime: "0:00" },
+            { id: 5, isoDate: "2026-09-11", type: "出勤", start: "17:31", end: "21:17", breakTime: "0:00" },
+            { id: 6, isoDate: "2026-09-12", type: "出勤", start: "13:54", end: "21:20", breakTime: "0:45" },
+            { id: 7, isoDate: "2026-09-13", type: "出勤", start: "08:25", end: "16:24", breakTime: "0:45" },
+            { id: 8, isoDate: "2026-09-15", type: "出勤", start: "17:32", end: "21:19", breakTime: "0:00" },
+            { id: 9, isoDate: "2026-09-17", type: "出勤", start: "18:00", end: "21:13", breakTime: "0:00" },
+            { id: 10, isoDate: "2026-09-18", type: "出勤", start: "09:50", end: "21:10", breakTime: "6:30" },
+            { id: 11, isoDate: "2026-09-22", type: "出勤", start: "11:52", end: "21:12", breakTime: "1:00" }
+        ];
+
+        let shifts = []; 
+        let draftShifts = {};
+        let specialAllowances = [
+            { id: 1, name: "お盆手当", startDate: "08-13", endDate: "08-16", rate: 300 },
+            { id: 2, name: "正月手当", startDate: "01-01", endDate: "01-03", rate: 500 }
+        ];
+        let payChartInstance = null;
+
+        const WEEKDAYS_JP = ["日", "月", "火", "水", "木", "金", "土"];
+
+        function formatIsoToDisplay(isoStr) {
+            if (!isoStr) return "";
+            const d = new Date(isoStr);
+            if (isNaN(d.getTime())) return isoStr;
+            const m = d.getMonth() + 1;
+            const day = d.getDate();
+            const w = WEEKDAYS_JP[d.getDay()];
+            return `${m}/${day}(${w})`;
+        }
+
+        function normalizeToIsoDate(textStr, year = 2026) {
+            if (!textStr) return new Date().toISOString().split('T')[0];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(textStr)) return textStr;
+
+            const match = textStr.match(/(\d{1,2})[/\-](\d{1,2})/);
+            if (match) {
+                const m = parseInt(match[1], 10).toString().padStart(2, '0');
+                const d = parseInt(match[2], 10).toString().padStart(2, '0');
+                return `${year}-${m}-${d}`;
+            }
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return 0;
+            // Support formats like "0:45", "1:00", "01:00", "45"
+            if (timeStr.includes(':')) {
+                const [h, m] = timeStr.split(':').map(Number);
+                return (h || 0) * 60 + (m || 0);
+            }
+            const mins = parseInt(timeStr, 10);
+            return isNaN(mins) ? 0 : mins;
+        }
+
+        function minutesToHHMMString(minutes) {
+            if (isNaN(minutes) || minutes < 0) return "0:00";
+            const h = Math.floor(minutes / 60);
+            const m = Math.floor(minutes % 60);
+            return `${h}:${m.toString().padStart(2, '0')}`;
+        }
+
+        function minutesToInputTimeString(minutes) {
+            if (isNaN(minutes) || minutes < 0) return "00:00";
+            const h = Math.floor(minutes / 60).toString().padStart(2, '0');
+            const m = Math.floor(minutes % 60).toString().padStart(2, '0');
+            return `${h}:${m}`;
+        }
+
+        function minutesToJapaneseDisplay(minutes) {
+            if (isNaN(minutes) || minutes <= 0) return "0分";
+            const h = Math.floor(minutes / 60);
+            const m = Math.floor(minutes % 60);
+            if (h === 0) return `${m}分`;
+            return `${h}時間${m > 0 ? m + '分' : ''}`;
+        }
+
+        function formatCurrency(num) {
+            return '¥' + Math.round(num).toLocaleString('ja-JP');
+        }
+
+        function getDayTypeFromIso(isoDateStr) {
+            if (!isoDateStr) return 'weekday';
+            const d = new Date(isoDateStr);
+            if (isNaN(d.getTime())) return 'weekday';
+            const dayNum = d.getDay();
+            if (dayNum === 6) return 'saturday';
+            if (dayNum === 0) return 'sunday_holiday';
+            return 'weekday';
+        }
+
+        function matchSpecialAllowance(isoDateStr) {
+            if (!isoDateStr) return null;
+            const d = new Date(isoDateStr);
+            if (isNaN(d.getTime())) return null;
+
+            const month = (d.getMonth() + 1).toString().padStart(2, '0');
+            const day = d.getDate().toString().padStart(2, '0');
+            const formattedMMDD = `${month}-${day}`;
+
+            for (const sp of specialAllowances) {
+                if (sp.startDate && sp.endDate) {
+                    if (formattedMMDD >= sp.startDate && formattedMMDD <= sp.endDate) {
+                        return sp;
+                    }
+                }
+            }
+            return null;
+        }
+
+        window.onload = function() {
+            loadSavedState();
+            initChart();
+            renderSpecialAllowanceSettings();
+            renderShiftCards();
+            recalculateAll();
+        };
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+
+            const navBtns = {
+                upload: document.getElementById('nav-btn-upload'),
+                shifts: document.getElementById('nav-btn-shifts'),
+                settings: document.getElementById('nav-btn-settings')
+            };
+
+            Object.keys(navBtns).forEach(key => {
+                navBtns[key].className = key === tabName 
+                    ? "flex flex-col items-center space-y-1 text-blue-600" 
+                    : "flex flex-col items-center space-y-1 text-slate-400";
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function triggerFileInput() {
+            document.getElementById('image-input').click();
+        }
+
+        function loadSampleImagePreset() {
+            shifts = JSON.parse(JSON.stringify(SAMPLE_SEPTEMBER_2026));
+            draftShifts = {};
+            saveState();
+            renderShiftCards();
+            recalculateAll();
+            showToast('サンプルスクショ(2026年9月分)をロードしました');
+        }
+
+        function clearAllData() {
+            shifts = [];
+            draftShifts = {};
+            localStorage.removeItem('payroll_shifts_data');
+            renderShiftCards();
+            recalculateAll();
+            showToast('データをすべて初期化しました');
+        }
+
+        async function processUploadedImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const progressBox = document.getElementById('ocr-progress');
+            progressBox.classList.remove('hidden');
+
+            try {
+                const base64Data = await fileToBase64(file);
+                
+                const systemPrompt = `You are an expert OCR attendance parser. Analyze the given screenshot of a work timecard/schedule table.
+Extract every row where a work shift is listed. Output ONLY a valid JSON array of objects with these keys:
+- "isoDate": Date in YYYY-MM-DD format (assume year 2026 if not specified, e.g. "2026-09-01", "2026-09-05")
+- "type": Work status (e.g. "出勤")
+- "start": Work start time in HH:MM format (e.g. "16:54")
+- "end": Work end time in HH:MM format (e.g. "21:06")
+- "breakTime": Total break time in H:MM or HH:MM format as shown in table (e.g. "0:45", "1:00", "0:00")
+
+Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work rows.`;
+
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{
+                        role: "user",
+                        parts: [
+                            { text: systemPrompt },
+                            {
+                                inlineData: {
+                                    mimeType: file.type || "image/png",
+                                    data: base64Data
+                                }
+                            }
+                        ]
+                    }],
+                    generationConfig: {
+                        responseMimeType: "application/json"
+                    }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (jsonText) {
+                    const parsedData = JSON.parse(jsonText);
+                    if (Array.isArray(parsedData) && parsedData.length > 0) {
+                        shifts = parsedData.map((item, idx) => ({
+                            id: idx + 1,
+                            isoDate: item.isoDate || normalizeToIsoDate(item.date, 2026),
+                            type: item.type || "出勤",
+                            start: item.start || "09:00",
+                            end: item.end || "18:00",
+                            breakTime: item.breakTime || "0:00"
+                        }));
+                        draftShifts = {};
+                        showToast(`${shifts.length}件のシフト（勤務時間・休憩時間）を自動抽出しました`);
+                    } else {
+                        throw new Error('No entries extracted');
+                    }
+                } else {
+                    throw new Error('Gemini vision API returned empty structure');
+                }
+
+            } catch (err) {
+                console.warn("API parsing failed, falling back to sample preset:", err);
+                loadSampleImagePreset();
+            } finally {
+                progressBox.classList.add('hidden');
+                saveState();
+                renderShiftCards();
+                recalculateAll();
+                event.target.value = '';
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function recalculateAll() {
+            const baseRate = parseFloat(document.getElementById('setting-hourly-rate').value) || 0;
+            const satAllowance = parseFloat(document.getElementById('setting-sat-allowance').value) || 0;
+            const sunAllowance = parseFloat(document.getElementById('setting-sun-allowance').value) || 0;
+            const nightMultiplier = parseFloat(document.getElementById('setting-night-rate').value) || 1.25;
+            const overMultiplier = parseFloat(document.getElementById('setting-over-rate').value) || 1.25;
+            const transportVal = parseFloat(document.getElementById('setting-transport-amount').value) || 0;
+
+            let grandTotalMins = 0, grandNightMins = 0, grandOverMins = 0;
+            let totalBasePaySum = 0, totalHolidayAllowanceSum = 0, totalSpecialAllowanceSum = 0, totalNightExtraSum = 0, totalOverExtraSum = 0;
+
+            shifts.forEach((s) => {
+                let startMins = parseTimeToMinutes(s.start);
+                let endMins = parseTimeToMinutes(s.end);
+
+                if (endMins < startMins) endMins += 24 * 60;
+
+                let breakMins = parseTimeToMinutes(s.breakTime);
+                let totalShiftMins = Math.max(0, endMins - startMins);
+                let workMins = Math.max(0, totalShiftMins - breakMins);
+
+                const dayType = getDayTypeFromIso(s.isoDate);
+                let holidayHourlyAdd = 0;
+                if (dayType === 'saturday') holidayHourlyAdd = satAllowance;
+                if (dayType === 'sunday_holiday') holidayHourlyAdd = sunAllowance;
+
+                let holidayAllowancePay = (workMins / 60) * holidayHourlyAdd;
+
+                const matchedSpecial = matchSpecialAllowance(s.isoDate);
+                let specialAllowancePay = 0;
+                if (matchedSpecial) {
+                    specialAllowancePay = (workMins / 60) * (matchedSpecial.rate || 0);
+                    s.specialBadge = `${matchedSpecial.name} (+${matchedSpecial.rate}円/時)`;
+                } else {
+                    s.specialBadge = null;
+                }
+
+                // 深夜帯 (22:00〜29:00 / 5:00) の時間計算
+                let nightShiftOverlap = 0;
+                let nightStart = 22 * 60;
+                let nightEnd = 29 * 60;
+
+                let oStart = Math.max(startMins, nightStart);
+                let oEnd = Math.min(endMins, nightEnd);
+                if (oStart < oEnd) {
+                    nightShiftOverlap = oEnd - oStart;
+                }
+
+                // 日中勤務時間（深夜帯以外の勤務時間）
+                let dayShiftOverlap = Math.max(0, totalShiftMins - nightShiftOverlap);
+
+                // 休憩時間はまず日中帯から控除、あふれた分を深夜帯から控除
+                let dayBreakDeducted = Math.min(breakMins, dayShiftOverlap);
+                let remainingBreakToNight = Math.max(0, breakMins - dayBreakDeducted);
+                let nightMins = Math.max(0, nightShiftOverlap - remainingBreakToNight);
+
+                let overMins = Math.max(0, workMins - 480);
+
+                let basePay = (workMins / 60) * baseRate;
+                let nightExtraPay = (nightMins / 60) * baseRate * (nightMultiplier - 1.0);
+                let overExtraPay = (overMins / 60) * baseRate * (overMultiplier - 1.0);
+
+                s.dayType = dayType;
+                s.breakMinsComputed = breakMins;
+                s.holidayAllowancePay = holidayAllowancePay;
+                s.specialAllowancePay = specialAllowancePay;
+                s.calculatedPay = basePay + holidayAllowancePay + specialAllowancePay + nightExtraPay + overExtraPay;
+                s.calculatedWorkMins = workMins;
+
+                grandTotalMins += workMins;
+                grandNightMins += nightMins;
+                grandOverMins += overMins;
+
+                totalBasePaySum += basePay;
+                totalHolidayAllowanceSum += holidayAllowancePay;
+                totalSpecialAllowanceSum += specialAllowancePay;
+                totalNightExtraSum += nightExtraPay;
+                totalOverExtraSum += overExtraPay;
+            });
+
+            const workDaysCount = shifts.length;
+            const totalTransport = workDaysCount > 0 ? transportVal : 0;
+            const grossPay = totalBasePaySum + totalHolidayAllowanceSum + totalSpecialAllowanceSum + totalNightExtraSum + totalOverExtraSum + totalTransport;
+            const netPay = grossPay * 0.967;
+
+            const summaryCard = document.getElementById('summary-card');
+            const statsGrid = document.getElementById('stats-grid');
+            const chartBox = document.getElementById('chart-box');
+
+            if (shifts.length > 0) {
+                summaryCard.classList.remove('hidden');
+                statsGrid.classList.remove('hidden');
+                chartBox.classList.remove('hidden');
+            } else {
+                summaryCard.classList.add('hidden');
+                statsGrid.classList.add('hidden');
+                chartBox.classList.add('hidden');
+            }
+
+            document.getElementById('badge-days-hours').innerText = `${workDaysCount}日出勤`;
+            document.getElementById('kpi-gross-pay').innerText = formatCurrency(grossPay);
+            document.getElementById('kpi-net-pay').innerText = formatCurrency(netPay);
+            document.getElementById('kpi-allowance-total').innerText = formatCurrency(totalHolidayAllowanceSum + totalSpecialAllowanceSum + totalNightExtraSum + totalOverExtraSum + totalTransport);
+
+            document.getElementById('kpi-total-hours').innerText = Math.floor(grandTotalMins / 60) + 'h ' + (grandTotalMins % 60) + 'm';
+            document.getElementById('kpi-night-hours').innerText = Math.floor(grandNightMins / 60) + 'h ' + (grandNightMins % 60) + 'm';
+            document.getElementById('kpi-over-hours').innerText = Math.floor(grandOverMins / 60) + 'h ' + (grandOverMins % 60) + 'm';
+
+            updateChartData(totalBasePaySum, totalHolidayAllowanceSum + totalSpecialAllowanceSum, totalNightExtraSum, totalOverExtraSum, totalTransport);
+        }
+
+        function renderShiftCards() {
+            const container = document.getElementById('shift-cards-container');
+            const emptyMsg = document.getElementById('empty-shifts-msg');
+            container.innerHTML = '';
+
+            if (shifts.length === 0) {
+                emptyMsg.classList.remove('hidden');
+                return;
+            }
+            emptyMsg.classList.add('hidden');
+
+            shifts.forEach((s) => {
+                const draft = draftShifts[s.id] || { ...s };
+                const isModified = (draft.start !== s.start || draft.end !== s.end || draft.breakTime !== s.breakTime || draft.isoDate !== s.isoDate);
+
+                let badgeHtml = '<span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">平日</span>';
+                if (s.dayType === 'saturday') {
+                    badgeHtml = '<span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">土曜手当</span>';
+                } else if (s.dayType === 'sunday_holiday') {
+                    badgeHtml = '<span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">日祝手当</span>';
+                }
+
+                let specialBadgeHtml = '';
+                if (s.specialBadge) {
+                    specialBadgeHtml = `<span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold ml-1"><i class="fa-solid fa-gift mr-1"></i>${s.specialBadge}</span>`;
+                }
+
+                const displayDate = formatIsoToDisplay(draft.isoDate);
+                const draftBreakMins = parseTimeToMinutes(draft.breakTime);
+                const inputTimeValue = minutesToInputTimeString(draftBreakMins);
+
+                const card = document.createElement('div');
+                card.id = `shift-card-${s.id}`;
+                card.className = `bg-white rounded-2xl p-3.5 shadow-sm border transition-all ${isModified ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200/80'}`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                        <div class="flex items-center space-x-1.5 flex-wrap">
+                            <div class="relative flex items-center bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-xl cursor-pointer active-scale">
+                                <i class="fa-solid fa-calendar text-blue-600 text-xs mr-1.5"></i>
+                                <span id="date-label-${s.id}" class="font-bold text-slate-800 text-xs">${displayDate || '日付選択'}</span>
+                                <input type="date" value="${draft.isoDate || ''}" onchange="onDraftChange(${s.id}, 'isoDate', this.value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                            </div>
+                            ${badgeHtml}
+                            ${specialBadgeHtml}
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-extrabold text-blue-600">${formatCurrency(s.calculatedPay || 0)}</span>
+                            <div id="confirm-btn-container-${s.id}">
+                                ${isModified ? `
+                                    <button onclick="confirmShiftChange(${s.id})" class="bg-emerald-500 text-white text-xs px-2.5 py-1 rounded-lg font-bold active-scale shadow-sm flex items-center">
+                                        <i class="fa-solid fa-check mr-1"></i>確定
+                                    </button>
+                                ` : ''}
+                            </div>
+                            <button onclick="deleteRow(${s.id})" class="text-slate-300 hover:text-red-500 p-1 active-scale"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- 勤務時間 & 休憩時間(合計)入力エリア -->
+                    <div class="space-y-2.5 pt-2.5">
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="text-[10px] text-slate-500 font-bold block mb-1">
+                                    <i class="fa-solid fa-clock text-blue-500 mr-1"></i>勤務開始
+                                </label>
+                                <input type="time" value="${draft.start}" oninput="onDraftChange(${s.id}, 'start', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 font-bold text-slate-800 text-center">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-slate-500 font-bold block mb-1">
+                                    <i class="fa-solid fa-clock text-blue-500 mr-1"></i>勤務終了
+                                </label>
+                                <input type="time" value="${draft.end}" oninput="onDraftChange(${s.id}, 'end', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 font-bold text-slate-800 text-center">
+                            </div>
+                        </div>
+
+                        <!-- 休憩時間(合計)の設定 -->
+                        <div class="bg-amber-50/50 p-2.5 rounded-2xl border border-amber-200/60 space-y-2">
+                            <div class="flex justify-between items-center text-[11px] font-bold text-amber-900">
+                                <span class="flex items-center">
+                                    <i class="fa-solid fa-mug-hot text-amber-600 mr-1.5"></i>休憩時間 (合計)
+                                </span>
+                                <span id="break-display-${s.id}" class="text-xs font-black text-amber-700 bg-white px-2 py-0.5 rounded-lg border border-amber-200 shadow-xs">
+                                    ${minutesToJapaneseDisplay(draftBreakMins)}
+                                </span>
+                            </div>
+
+                            <div class="flex items-center space-x-2">
+                                <input type="time" id="break-input-${s.id}" value="${inputTimeValue}" step="900" onchange="onBreakTimeInputChange(${s.id}, this.value)" class="w-28 bg-white border border-amber-200 rounded-xl p-1.5 font-bold text-slate-800 text-center text-xs">
+                                
+                                <div class="flex-1 flex space-x-1 overflow-x-auto ios-scroll">
+                                    <button onclick="setQuickBreak(${s.id}, '0:00')" class="px-2 py-1 bg-white text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold active-scale shrink-0">0分</button>
+                                    <button onclick="setQuickBreak(${s.id}, '0:15')" class="px-2 py-1 bg-white text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold active-scale shrink-0">15分</button>
+                                    <button onclick="setQuickBreak(${s.id}, '0:30')" class="px-2 py-1 bg-white text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold active-scale shrink-0">30分</button>
+                                    <button onclick="setQuickBreak(${s.id}, '0:45')" class="px-2 py-1 bg-white text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold active-scale shrink-0">45分</button>
+                                    <button onclick="setQuickBreak(${s.id}, '1:00')" class="px-2 py-1 bg-white text-slate-600 border border-slate-200 rounded-lg text-[10px] font-bold active-scale shrink-0">1時間</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function onDraftChange(id, field, value) {
+            const shift = shifts.find(s => s.id === id);
+            if (!shift) return;
+
+            if (!draftShifts[id]) {
+                draftShifts[id] = { ...shift };
+            }
+            draftShifts[id][field] = value;
+
+            const draft = draftShifts[id];
+            const isModified = (draft.start !== shift.start || draft.end !== shift.end || draft.breakTime !== shift.breakTime || draft.isoDate !== shift.isoDate);
+
+            if (field === 'isoDate') {
+                const dateLabel = document.getElementById(`date-label-${id}`);
+                if (dateLabel) {
+                    dateLabel.innerText = formatIsoToDisplay(value) || '日付選択';
+                }
+            }
+
+            const confirmBtnContainer = document.getElementById(`confirm-btn-container-${id}`);
+            if (confirmBtnContainer) {
+                if (isModified) {
+                    confirmBtnContainer.innerHTML = `
+                        <button onclick="confirmShiftChange(${id})" class="bg-emerald-500 text-white text-xs px-2.5 py-1 rounded-lg font-bold active-scale shadow-sm flex items-center">
+                            <i class="fa-solid fa-check mr-1"></i>確定
+                        </button>
+                    `;
+                } else {
+                    confirmBtnContainer.innerHTML = '';
+                }
+            }
+
+            const cardEl = document.getElementById(`shift-card-${id}`);
+            if (cardEl) {
+                if (isModified) {
+                    cardEl.className = "bg-white rounded-2xl p-3.5 shadow-sm border border-blue-500 ring-2 ring-blue-100 transition-all";
+                } else {
+                    cardEl.className = "bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 transition-all";
+                }
+            }
+        }
+
+        function onBreakTimeInputChange(id, valHHMM) {
+            // valHHMM example: "00:45" -> format to "0:45"
+            const mins = parseTimeToMinutes(valHHMM);
+            const formatted = minutesToHHMMString(mins);
+            
+            const displayEl = document.getElementById(`break-display-${id}`);
+            if (displayEl) {
+                displayEl.innerText = minutesToJapaneseDisplay(mins);
+            }
+
+            onDraftChange(id, 'breakTime', formatted);
+        }
+
+        function setQuickBreak(id, breakTimeStr) {
+            const mins = parseTimeToMinutes(breakTimeStr);
+            const inputEl = document.getElementById(`break-input-${id}`);
+            if (inputEl) {
+                inputEl.value = minutesToInputTimeString(mins);
+            }
+
+            const displayEl = document.getElementById(`break-display-${id}`);
+            if (displayEl) {
+                displayEl.innerText = minutesToJapaneseDisplay(mins);
+            }
+
+            onDraftChange(id, 'breakTime', breakTimeStr);
+        }
+
+        function confirmShiftChange(id) {
+            if (draftShifts[id]) {
+                const shiftIndex = shifts.findIndex(s => s.id === id);
+                if (shiftIndex !== -1) {
+                    shifts[shiftIndex] = { ...draftShifts[id] };
+                }
+                delete draftShifts[id];
+                saveState();
+                renderShiftCards();
+                recalculateAll();
+                showToast('シフト情報を確定・更新しました');
+            }
+        }
+
+        function deleteRow(id) {
+            shifts = shifts.filter(s => s.id !== id);
+            delete draftShifts[id];
+            saveState();
+            renderShiftCards();
+            recalculateAll();
+        }
+
+        function addNewRow() {
+            const newId = shifts.length > 0 ? Math.max(...shifts.map(s => s.id)) + 1 : 1;
+            const todayIso = new Date().toISOString().split('T')[0];
+            const newShift = { id: newId, isoDate: todayIso, type: "出勤", start: "09:00", end: "18:00", breakTime: "1:00" };
+            shifts.push(newShift);
+            draftShifts[newId] = { ...newShift };
+            saveState();
+            renderShiftCards();
+            recalculateAll();
+            showToast('新規シフトを追加しました。「確定」を押して確定します');
+        }
+
+        function renderSpecialAllowanceSettings() {
+            const container = document.getElementById('special-allowance-list');
+            container.innerHTML = '';
+
+            if (specialAllowances.length === 0) {
+                container.innerHTML = '<p class="text-[11px] text-amber-700 italic">特別期間手当の登録はありません</p>';
+                return;
+            }
+
+            specialAllowances.forEach((sp) => {
+                const row = document.createElement('div');
+                row.className = "bg-white p-2.5 rounded-xl border border-amber-200/60 space-y-2 text-xs";
+                row.innerHTML = `
+                    <div class="flex items-center justify-between gap-1">
+                        <input type="text" value="${sp.name}" onchange="updateSpecialAllowance(${sp.id}, 'name', this.value)" placeholder="例: お盆手当" class="font-bold text-slate-800 bg-amber-50/50 px-2 py-1 rounded border border-amber-200 w-1/2">
+                        <div class="flex items-center space-x-1 w-1/2 justify-end">
+                            <span class="text-[10px] text-amber-900 font-semibold">+</span>
+                            <input type="number" value="${sp.rate}" inputmode="numeric" pattern="[0-9]*" onchange="updateSpecialAllowance(${sp.id}, 'rate', this.value)" step="50" class="font-bold text-amber-900 bg-amber-50/50 px-1.5 py-1 rounded border border-amber-200 w-20 text-right">
+                            <span class="text-[10px] text-amber-900 font-medium">円/時</span>
+                            <button onclick="removeSpecialAllowance(${sp.id})" class="text-slate-300 hover:text-red-500 px-1"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1.5 text-[11px] text-slate-600">
+                        <span>期間:</span>
+                        <input type="text" value="${sp.startDate}" placeholder="08-13" onchange="updateSpecialAllowance(${sp.id}, 'startDate', this.value)" class="w-16 bg-slate-50 border border-slate-200 rounded px-1 text-center font-mono">
+                        <span>〜</span>
+                        <input type="text" value="${sp.endDate}" placeholder="08-16" onchange="updateSpecialAllowance(${sp.id}, 'endDate', this.value)" class="w-16 bg-slate-50 border border-slate-200 rounded px-1 text-center font-mono">
+                        <span class="text-[10px] text-slate-400">(MM-DD)</span>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function addSpecialAllowanceRow() {
+            const newId = specialAllowances.length > 0 ? Math.max(...specialAllowances.map(s => s.id)) + 1 : 1;
+            specialAllowances.push({ id: newId, name: "GW手当", startDate: "05-03", endDate: "05-05", rate: 200 });
+            saveState();
+            renderSpecialAllowanceSettings();
+            recalculateAll();
+        }
+
+        function updateSpecialAllowance(id, field, value) {
+            const target = specialAllowances.find(s => s.id === id);
+            if (target) {
+                target[field] = field === 'rate' ? parseFloat(value) || 0 : value;
+                saveState();
+                recalculateAll();
+                renderShiftCards();
+            }
+        }
+
+        function removeSpecialAllowance(id) {
+            specialAllowances = specialAllowances.filter(s => s.id !== id);
+            saveState();
+            renderSpecialAllowanceSettings();
+            recalculateAll();
+            renderShiftCards();
+        }
+
+        function saveSettingsAndRecalc() {
+            saveState();
+            recalculateAll();
+        }
+
+        function saveState() {
+            localStorage.setItem('payroll_shifts_data', JSON.stringify(shifts));
+            localStorage.setItem('payroll_special_allowances', JSON.stringify(specialAllowances));
+            const settings = {
+                hourlyRate: document.getElementById('setting-hourly-rate').value,
+                satAllowance: document.getElementById('setting-sat-allowance').value,
+                sunAllowance: document.getElementById('setting-sun-allowance').value,
+                nightRate: document.getElementById('setting-night-rate').value,
+                overRate: document.getElementById('setting-over-rate').value,
+                transport: document.getElementById('setting-transport-amount').value
+            };
+            localStorage.setItem('payroll_settings', JSON.stringify(settings));
+        }
+
+        function loadSavedState() {
+            const savedShifts = localStorage.getItem('payroll_shifts_data');
+            if (savedShifts) {
+                try { 
+                    const loaded = JSON.parse(savedShifts);
+                    shifts = loaded.map(s => {
+                        if (!s.isoDate && s.date) {
+                            s.isoDate = normalizeToIsoDate(s.date);
+                        }
+                        if (!s.breakTime && s.breakMins) {
+                            s.breakTime = minutesToHHMMString(s.breakMins);
+                        }
+                        return s;
+                    });
+                } catch(e) {}
+            }
+
+            const savedSpecials = localStorage.getItem('payroll_special_allowances');
+            if (savedSpecials) {
+                try { specialAllowances = JSON.parse(savedSpecials); } catch(e) {}
+            }
+
+            const savedSettings = localStorage.getItem('payroll_settings');
+            if (savedSettings) {
+                try {
+                    const st = JSON.parse(savedSettings);
+                    if (st.hourlyRate) document.getElementById('setting-hourly-rate').value = st.hourlyRate;
+                    if (st.satAllowance !== undefined) document.getElementById('setting-sat-allowance').value = st.satAllowance;
+                    if (st.sunAllowance !== undefined) document.getElementById('setting-sun-allowance').value = st.sunAllowance;
+                    if (st.nightRate) document.getElementById('setting-night-rate').value = st.nightRate;
+                    if (st.overRate) document.getElementById('setting-over-rate').value = st.overRate;
+                    if (st.transport) document.getElementById('setting-transport-amount').value = st.transport;
+                } catch(e) {}
+            }
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('payChart').getContext('2d');
+            payChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['基本時給', '休日/特別手当', '深夜手当', '残業手当', '交通費'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#6366f1', '#10b981', '#64748b'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: 'right', labels: { font: { size: 10 } } } },
+                    cutout: '68%'
+                }
+            });
+        }
+
+        function updateChartData(base, holiday, night, over, transport) {
+            if (!payChartInstance) return;
+            payChartInstance.data.datasets[0].data = [base, holiday, night, over, transport];
+            payChartInstance.update();
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('opacity-0', '-translate-y-4', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-4', 'pointer-events-none');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
