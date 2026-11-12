@@ -141,6 +141,19 @@
       font-weight: 700;
       cursor: pointer;
       margin-top: 8px;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .btn-emerald:active {
+      transform: scale(0.98);
+    }
+
+    .btn-dirty {
+      background: #ff9500 !important;
+    }
+
+    .btn-saved {
+      background: #007aff !important;
     }
 
     .btn-danger {
@@ -177,6 +190,12 @@
       padding: 12px;
       margin-bottom: 10px;
       border: 1px solid #e5e5ea;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .shift-card.just-saved {
+      border-color: #34c759;
+      box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.2);
     }
 
     .shift-header {
@@ -257,14 +276,42 @@
       width: 100%;
       max-width: 340px;
     }
+
+    /* 保存通知トースト */
+    .toast-banner {
+      position: fixed;
+      top: calc(max(12px, env(safe-area-inset-top)) + 54px);
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: rgba(28, 28, 30, 0.92);
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 60;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      white-space: nowrap;
+    }
+
+    .toast-banner.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   </style>
 </head>
 <body>
 
   <header>
     <h1>給料計算アプリ</h1>
-    <span class="badge">全月対応 v5</span>
+    <span class="badge">全月対応 v6</span>
   </header>
+
+  <!-- トースト通知 -->
+  <div id="toastBanner" class="toast-banner">✅ 保存しました</div>
 
   <main>
     <!-- タブ 1: サマリー -->
@@ -481,6 +528,17 @@
     let cfg = loadCfg();
     let shifts = loadShifts();
     let pendingParsedShifts = [];
+    let toastTimer = null;
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastBanner');
+      toast.innerText = msg;
+      toast.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2500);
+    }
 
     function loadCfg() {
       try {
@@ -614,6 +672,7 @@
       calcAll();
       document.getElementById('importModeModal').classList.add('hidden');
       document.getElementById('btnTabShifts').click();
+      showToast(`✅ ${shifts.length}日分のシフトを読み込みました`);
     }
 
     // Gemini Vision API（混雑時は自動で軽量モデルへフォールバック）
@@ -642,7 +701,6 @@
 休憩(合計)が「0:45」なら45、「1:00」なら60のように分単位の数値に変換してください。空欄の日は除外してください。
 [{"date":"YYYY-MM-DD","type":"出勤","start":"HH:MM","end":"HH:MM","breakMins":0}]`;
 
-        // 混雑しにくいモデル順で試行
         const models = ['gemini-3.8-flash-lite', 'gemini-3.8-flash'];
         let resultData = null;
         let lastError = '';
@@ -712,16 +770,13 @@
         detectedYear = parseInt(ymMatch[1], 10);
       }
 
-      // 1. 全角→半角変換
       let text = rawText
         .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
         .replace(/：/g, ':')
         .replace(/／/g, '/');
 
-      // 2. セル幅不足による時刻の途中改行を修復（例: "00:4\n4" → "00:44"）
       text = text.replace(/(\b[01]?\d|2[0-3]):([0-5])\s*\n\s*(\d)\b/g, '$1:$2$3');
 
-      // 3. 日付パターン（10/1, 10/16 など）を基準にブロック分割して解析
       const dateRegex = /(?:^|\n)\s*(0?[1-9]|1[0-2])\/(0?[1-9]|[12]\d|3[01])(?:\s*[\(（][^\)）\n]*[\)）]?)?/g;
       const matches = [...text.matchAll(dateRegex)];
 
@@ -736,10 +791,8 @@
         const blockEnd = next ? next.index : text.length;
         const blockText = text.slice(blockStart, blockEnd);
 
-        // この日付ブロック内の時刻（HH:MM）をすべて取得
         const timeMatches = blockText.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g);
 
-        // 開始・終了の2つ以上がある日のみ出勤日として抽出
         if (timeMatches && timeMatches.length >= 2) {
           const startStr = padTime(timeMatches[0]);
           const endStr = padTime(timeMatches[1]);
@@ -814,7 +867,6 @@
         basePayTotal += workH * cfg.wage;
         holidayPayTotal += workH * addHourly;
 
-        // 深夜手当 (22:00 ~ 05:00)
         let nightMins = 0;
         for(let min = startM; min < endM - breakM; min++) {
           const h = Math.floor(min / 60) % 24;
@@ -822,7 +874,6 @@
         }
         nightPayTotal += (nightMins / 60) * (hourly * 0.25);
 
-        // 残業手当 (8時間超)
         const overtimeMins = Math.max(0, workM - 8 * 60);
         overtimePayTotal += (overtimeMins / 60) * (hourly * 0.25);
       });
@@ -862,6 +913,15 @@
       saveShifts();
       renderShifts();
       calcAll();
+
+      const btn = document.getElementById('addShiftBtn');
+      btn.classList.add('btn-saved');
+      btn.innerText = '✅ 追加して保存しました！';
+      showToast(`✅ ${date} のシフトを追加しました`);
+      setTimeout(() => {
+        btn.classList.remove('btn-saved');
+        btn.innerText = '✓ 確定してシフトを追加';
+      }, 1800);
     }
 
     function clearShifts() {
@@ -870,10 +930,11 @@
         saveShifts();
         renderShifts();
         calcAll();
+        showToast('🗑️ シフトデータをすべて削除しました');
       }
     }
 
-    function renderShifts() {
+    function renderShifts(savedDate = null) {
       const container = document.getElementById('shiftContainer');
       container.innerHTML = '';
 
@@ -886,7 +947,8 @@
 
       shifts.forEach((s, idx) => {
         const div = document.createElement('div');
-        div.className = 'shift-card';
+        const isJustSaved = (savedDate && s.date === savedDate);
+        div.className = 'shift-card' + (isJustSaved ? ' just-saved' : '');
         
         const [y, m, d] = s.date.split('-').map(Number);
         const dt = new Date(y, m - 1, d);
@@ -925,22 +987,51 @@
               <input type="number" value="${s.breakMins}" class="break-inp form-control" style="padding:4px;">
             </div>
           </div>
-          <button class="btn-emerald save-btn" data-idx="${idx}">✓ 確定保存</button>
+          <button class="btn-emerald save-btn ${isJustSaved ? 'btn-saved' : ''}" data-idx="${idx}">
+            ${isJustSaved ? '✅ 保存しました！（給与再計算済み）' : '✓ 確定保存'}
+          </button>
         `;
         container.appendChild(div);
+
+        // 入力値を変更したら未保存状態（オレンジ色）にする
+        div.querySelectorAll('input').forEach(inp => {
+          inp.addEventListener('input', () => {
+            const btn = div.querySelector('.save-btn');
+            div.classList.remove('just-saved');
+            btn.classList.remove('btn-saved');
+            btn.classList.add('btn-dirty');
+            btn.innerText = '● 変更あり（タップして確定保存）';
+          });
+        });
+
+        // 保存直後のハイライトを2.5秒後に元に戻す
+        if (isJustSaved) {
+          setTimeout(() => {
+            div.classList.remove('just-saved');
+            const btn = div.querySelector('.save-btn');
+            if (btn && btn.classList.contains('btn-saved')) {
+              btn.classList.remove('btn-saved');
+              btn.innerText = '✓ 確定保存';
+            }
+          }, 2500);
+        }
       });
 
       container.querySelectorAll('.save-btn').forEach(btn => {
         btn.addEventListener('click', e => {
           const idx = e.target.dataset.idx;
           const card = e.target.closest('.shift-card');
-          shifts[idx].date = card.querySelector('.date-inp').value;
+          const newDateVal = card.querySelector('.date-inp').value;
+          shifts[idx].date = newDateVal;
           shifts[idx].start = card.querySelector('.start-inp').value;
           shifts[idx].end = card.querySelector('.end-inp').value;
           shifts[idx].breakMins = Number(card.querySelector('.break-inp').value) || 0;
           saveShifts();
-          renderShifts();
           calcAll();
+          renderShifts(newDateVal);
+
+          const [, m, d] = newDateVal.split('-');
+          showToast(`✅ ${Number(m)}/${Number(d)} のシフトを保存しました`);
         });
       });
 
@@ -950,6 +1041,7 @@
           saveShifts();
           renderShifts();
           calcAll();
+          showToast('🗑️ 1件のシフトを削除しました');
         });
       });
     }
