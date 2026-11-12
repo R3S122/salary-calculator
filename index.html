@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="給与計算">
 
-  <!-- 超軽量・数字/英語特化OCRエンジン -->
+  <!-- 軽量OCRエンジン -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
@@ -316,7 +316,7 @@
 
   <header>
     <h1>給料計算アプリ</h1>
-    <span class="badge">AI不要・高速OCR v7</span>
+    <span class="badge">専用表解析 v9</span>
   </header>
 
   <div id="toastBanner" class="toast-banner">✅ 保存しました</div>
@@ -369,16 +369,16 @@
       <div class="card" style="text-align: center;">
         <h3 style="font-size: 14px; margin-bottom: 6px;">勤怠データの読み込み</h3>
         <p style="font-size: 11px; color: #666; margin-bottom: 12px;">
-          外部AIを使わずスマホ内で数字を高速認識します（APIキー・待機時間なし）
+          勤務実績スクショの格子線を自動除去し、セルごとに高精度読み取りします
         </p>
 
         <div class="form-group" style="text-align: left; margin-bottom: 10px;">
-          <label>対象年 (画像に年が写っていない場合に使用)</label>
+          <label>対象年 (デフォルト: 2026)</label>
           <input type="number" id="ocrTargetYear" value="2026" class="form-control" style="padding: 8px 10px;">
         </div>
 
         <label class="btn-primary">
-          📷 スクショ画像を選択して解析
+          📷 勤務実績スクショを読み込む
           <input type="file" id="imageInput" accept="image/*" style="display:none;">
         </label>
 
@@ -478,8 +478,8 @@
   <!-- 解析中モーダル -->
   <div class="modal-overlay hidden" id="loadingModal">
     <div class="modal-box">
-      <p style="font-weight: bold; font-size: 16px; margin-bottom: 6px;">数字を高速スキャン中...</p>
-      <p style="font-size: 12px; color: #666;" id="loadingSubText">日付と時間を抽出しています</p>
+      <p style="font-weight: bold; font-size: 16px; margin-bottom: 6px;">表の枠線を除去して解析中...</p>
+      <p style="font-size: 12px; color: #666;" id="loadingSubText">日付・開始・終了・休憩のセルを抽出しています</p>
       <div class="progress-bar">
         <div class="progress-fill" id="ocrProgressBar"></div>
       </div>
@@ -612,9 +612,8 @@
       document.getElementById('addShiftBtn').addEventListener('click', addShift);
       document.getElementById('clearShiftsBtn').addEventListener('click', clearShifts);
       document.getElementById('addPeriodBtn').addEventListener('click', addPeriod);
-      document.getElementById('imageInput').addEventListener('change', handleLocalFastOCR);
+      document.getElementById('imageInput').addEventListener('change', handleGridTableOCR);
 
-      // テキスト貼り付けモーダル
       document.getElementById('openTextPasteBtn').addEventListener('click', () => {
         document.getElementById('pasteArea').value = '';
         document.getElementById('textPasteModal').classList.remove('hidden');
@@ -634,7 +633,6 @@
         promptImportMode(parsed);
       });
 
-      // インポート確認モーダル
       document.getElementById('btnOverwriteShifts').addEventListener('click', () => {
         shifts = [...pendingParsedShifts];
         finishImport();
@@ -676,8 +674,8 @@
       showToast(`✅ ${shifts.length}日分のシフトを読み込みました`);
     }
 
-    // AI不要・英語/数字特化型ローカルOCR（高速・通信エラーなし）
-    async function handleLocalFastOCR(e) {
+    // 格子線除去＋セル座標マッピング式 高精度OCR
+    async function handleGridTableOCR(e) {
       const file = e.target.files[0];
       if (!file) return;
 
@@ -686,36 +684,35 @@
       const progressBar = document.getElementById('ocrProgressBar');
       modal.classList.remove('hidden');
       progressBar.style.width = '15%';
-      subText.innerText = '画像を最適化しています...';
+      subText.innerText = '表の黒い枠線と背景色を除去中...';
 
       try {
-        // 表の余白や色背景を除去し、黒文字をクッキリさせる前処理
-        const cleanDataUrl = await preprocessTableImage(file);
+        const { dataUrl, width, height } = await removeGridLinesAndBinarize(file);
         progressBar.style.width = '35%';
-        subText.innerText = '数字と時刻をスキャン中...';
+        subText.innerText = 'セル内の数字を読み取り中...';
 
-        // 'eng'（超軽量モデル）＋ 数字・スラッシュ・コロンに特化させて高速化
         const worker = await Tesseract.createWorker('eng', 1, {
           logger: m => {
             if (m.status === 'recognizing text') {
-              const pct = 35 + Math.round(m.progress * 65);
+              const pct = 35 + Math.round(m.progress * 60);
               progressBar.style.width = `${pct}%`;
             }
           }
         });
 
         await worker.setParameters({
-          tessedit_char_whitelist: '0123456789/:() \n',
+          tessedit_char_whitelist: '0123456789/:',
+          tessedit_pageseg_mode: '6',
         });
 
-        const { data: { text } } = await worker.recognize(cleanDataUrl);
+        const { data } = await worker.recognize(dataUrl);
         await worker.terminate();
 
         const defaultYear = Number(document.getElementById('ocrTargetYear').value) || new Date().getFullYear();
-        const parsed = parseAttendanceText(text, defaultYear);
+        const parsed = parseWordsByGridCoordinates(data.words, width, height, defaultYear);
 
         if (parsed.length === 0) {
-          alert('画像から時間データ（HH:MM）を読み取れませんでした。\n文字が小さい場合は「📋 長押しコピーしたテキストを貼り付け」をお試しください。');
+          alert('表から勤務時間を読み取れませんでした。\n画面の解像度や傾きを確認するか、「📋 長押しコピーしたテキストを貼り付け」をお試しください。');
         } else {
           promptImportMode(parsed);
         }
@@ -727,36 +724,79 @@
       }
     }
 
-    // 画像前処理（青・ピンク背景を白飛ばしして数字だけをくっきり浮かび上がらせる）
-    function preprocessTableImage(file) {
+    // 画像から「長い直線（表の枠線）」と「背景色」を削除して文字だけを残す処理
+    function removeGridLinesAndBinarize(file) {
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (ev) => {
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            // 読み取り精度を上げるため2倍に拡大
             const scale = 2;
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
+            const w = img.width * scale;
+            const h = img.height * scale;
+            canvas.width = w;
+            canvas.height = h;
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, w, h);
 
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const imgData = ctx.getImageData(0, 0, w, h);
             const data = imgData.data;
 
-            for (let i = 0; i < data.length; i += 4) {
-              const r = data[i], g = data[i + 1], b = data[i + 2];
-              // 土日の水色・ピンク背景やヘッダーの青色を白に変換し、濃い文字だけ黒にする
-              const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
-              if (brightness > 135) {
-                data[i] = 255; data[i + 1] = 255; data[i + 2] = 255;
-              } else {
-                data[i] = 0; data[i + 1] = 0; data[i + 2] = 0;
+            const binary = new Uint8Array(w * h);
+            for (let i = 0; i < w * h; i++) {
+              const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+              const brightness = r * 0.299 + g * 0.587 + b * 0.114;
+              binary[i] = (brightness < 120) ? 1 : 0;
+            }
+
+            // 水平方向の枠線を検出して消去
+            const minHLine = Math.floor(w * 0.25);
+            for (let y = 0; y < h; y++) {
+              let run = 0;
+              for (let x = 0; x < w; x++) {
+                if (binary[y * w + x] === 1) {
+                  run++;
+                } else {
+                  if (run >= minHLine) {
+                    for (let kx = x - run; kx < x; kx++) binary[y * w + kx] = 0;
+                  }
+                  run = 0;
+                }
+              }
+              if (run >= minHLine) {
+                for (let kx = w - run; kx < w; kx++) binary[y * w + kx] = 0;
               }
             }
+
+            // 垂直方向の枠線を検出して消去
+            const minVLine = Math.floor(h * 0.15);
+            for (let x = 0; x < w; x++) {
+              let run = 0;
+              for (let y = 0; y < h; y++) {
+                if (binary[y * w + x] === 1) {
+                  run++;
+                } else {
+                  if (run >= minVLine) {
+                    for (let ky = y - run; ky < y; ky++) binary[ky * w + x] = 0;
+                  }
+                  run = 0;
+                }
+              }
+              if (run >= minVLine) {
+                for (let ky = h - run; ky < h; ky++) binary[ky * w + x] = 0;
+              }
+            }
+
+            for (let i = 0; i < w * h; i++) {
+              const val = binary[i] === 1 ? 0 : 255;
+              data[i * 4] = val;
+              data[i * 4 + 1] = val;
+              data[i * 4 + 2] = val;
+              data[i * 4 + 3] = 255;
+            }
             ctx.putImageData(imgData, 0, 0);
-            resolve(canvas.toDataURL('image/png'));
+            resolve({ dataUrl: canvas.toDataURL('image/png'), width: w, height: h });
           };
           img.src = ev.target.result;
         };
@@ -764,12 +804,106 @@
       });
     }
 
-    // 縦並び・途中改行対応テキストパーサー
+    // OCRが検出した単語の座標（X, Y）から、6列の勤怠表を復元して解析
+    function parseWordsByGridCoordinates(words, imgW, imgH, defaultYear) {
+      if (!words || words.length === 0) return [];
+
+      const tableWords = words.filter(w => {
+        const cy = (w.bbox.y0 + w.bbox.y1) / 2;
+        return cy > imgH * 0.12 && cy < imgH * 0.96 && w.text.trim().length > 0;
+      });
+
+      let detectedYear = defaultYear;
+      const topWords = words.filter(w => w.bbox.y1 < imgH * 0.18);
+      for (const tw of topWords) {
+        const yMatch = tw.text.match(/(20\d{2})/);
+        if (yMatch) {
+          detectedYear = parseInt(yMatch[1], 10);
+          break;
+        }
+      }
+
+      // 2桁の月・日を優先してマッチさせる（10〜31日が1〜3日に誤認されるのを防止）
+      const dateAnchors = [];
+      tableWords.forEach(w => {
+        const cx = (w.bbox.x0 + w.bbox.x1) / 2;
+        if (cx < imgW * 0.23) {
+          const m = w.text.match(/(1[0-2]|0?[1-9])\/(3[01]|[12]\d|0?[1-9])/);
+          if (m) {
+            dateAnchors.push({
+              month: parseInt(m[1], 10),
+              day: parseInt(m[2], 10),
+              y0: w.bbox.y0,
+              y1: w.bbox.y1,
+              cy: (w.bbox.y0 + w.bbox.y1) / 2
+            });
+          }
+        }
+      });
+
+      dateAnchors.sort((a, b) => a.cy - b.cy);
+
+      const results = [];
+
+      for (let i = 0; i < dateAnchors.length; i++) {
+        const curr = dateAnchors[i];
+        const prev = dateAnchors[i - 1];
+        const next = dateAnchors[i + 1];
+
+        const rowTop = prev ? (prev.cy + curr.cy) / 2 : curr.y0 - imgH * 0.025;
+        const rowBottom = next ? (curr.cy + next.cy) / 2 : curr.y1 + imgH * 0.035;
+
+        const rowTokens = tableWords.filter(w => {
+          const cy = (w.bbox.y0 + w.bbox.y1) / 2;
+          return cy >= rowTop && cy < rowBottom;
+        });
+
+        const getCellText = (minXRatio, maxXRatio) => {
+          const cellTokens = rowTokens.filter(w => {
+            const cx = (w.bbox.x0 + w.bbox.x1) / 2;
+            return cx >= imgW * minXRatio && cx < imgW * maxXRatio;
+          });
+          cellTokens.sort((a, b) => a.bbox.y0 - b.bbox.y0 || a.bbox.x0 - b.bbox.x0);
+          return cellTokens.map(t => t.text.trim()).join('');
+        };
+
+        const startRaw = getCellText(0.35, 0.51);
+        const endRaw = getCellText(0.51, 0.66);
+        const breakRaw = getCellText(0.66, 0.84);
+
+        const startMatch = startRaw.match(/([01]?\d|2[0-3]):([0-5]\d)/);
+        const endMatch = endRaw.match(/([01]?\d|2[0-3]):([0-5]\d)/);
+
+        if (startMatch && endMatch) {
+          const startStr = `${startMatch[1].padStart(2, '0')}:${startMatch[2]}`;
+          const endStr = `${endMatch[1].padStart(2, '0')}:${endMatch[2]}`;
+
+          let breakMins = 0;
+          const breakMatch = breakRaw.match(/([01]?\d|2[0-3]):([0-5]\d)/);
+          if (breakMatch) {
+            breakMins = parseInt(breakMatch[1], 10) * 60 + parseInt(breakMatch[2], 10);
+          }
+
+          const dateStr = `${detectedYear}-${String(curr.month).padStart(2, '0')}-${String(curr.day).padStart(2, '0')}`;
+          results.push({
+            date: dateStr,
+            type: '出勤',
+            start: startStr,
+            end: endStr,
+            breakMins: breakMins
+          });
+        }
+      }
+
+      return results;
+    }
+
+    // 縦並び・途中改行・2桁日付対応テキストパーサー（貼り付け用）
     function parseAttendanceText(rawText, defaultYear) {
       const results = [];
       let detectedYear = defaultYear;
 
-      const ymMatch = rawText.match(/(20\d{2})\s*[年\/\-]\s*(0?[1-9]|1[0-2])\s*月?/);
+      const ymMatch = rawText.match(/(20\d{2})\s*[年\/\-]\s*(1[0-2]|0?[1-9])\s*月?/);
       if (ymMatch) {
         detectedYear = parseInt(ymMatch[1], 10);
       }
@@ -782,8 +916,8 @@
       // セル内での途中改行（例: "00:4\n4" → "00:44"）を修復
       text = text.replace(/(\b[01]?\d|2[0-3]):([0-5])\s*\n\s*(\d)\b/g, '$1:$2$3');
 
-      // 行単位で日付と時刻が横並びになっている場合も、縦並びブロックになっている場合も両方処理
-      const dateRegex = /(?:^|\n|\s)(0?[1-9]|1[0-2])\/(0?[1-9]|[12]\d|3[01])(?:\s*[\(（][^\)）\n]*[\)）]?)?/g;
+      // 2桁の月・日を優先してマッチさせる（10/16が10/1になるのを防止）
+      const dateRegex = /(?:^|\n|\s)(1[0-2]|0?[1-9])\/(3[01]|[12]\d|0?[1-9])(?:\s*[\(（][^\)）\n]*[\)）]?)?/g;
       const matches = [...text.matchAll(dateRegex)];
 
       for (let i = 0; i < matches.length; i++) {
