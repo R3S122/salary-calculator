@@ -347,7 +347,7 @@
 
   <header>
     <h1>給料計算アプリ</h1>
-    <span class="badge">専用表解析 v12</span>
+    <span class="badge">専用表解析 v13</span>
   </header>
 
   <div id="toastBanner" class="toast-banner">✅ 保存しました</div>
@@ -1067,8 +1067,9 @@
         basePayTotal += workH * cfg.wage;
         holidayPayTotal += workH * addHourly;
 
+        // 22時〜翌5時の間にいた時間は休憩を差し引かずそのまま深夜手当を計算
         let nightMins = 0;
-        for(let min = startM; min < endM - breakM; min++) {
+        for(let min = startM; min < endM; min++) {
           const h = Math.floor(min / 60) % 24;
           if(h >= 22 || h < 5) nightMins++;
         }
