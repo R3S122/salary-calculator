@@ -316,7 +316,7 @@
 
   <header>
     <h1>給料計算アプリ</h1>
-    <span class="badge">専用表解析 v10</span>
+    <span class="badge">専用表解析 v11</span>
   </header>
 
   <div id="toastBanner" class="toast-banner">✅ 保存しました</div>
@@ -416,7 +416,16 @@
           </div>
           <div class="form-group">
             <label>休憩(分)</label>
-            <input type="number" id="newBreak" value="60" class="form-control">
+            <select id="newBreak" class="form-control">
+              <option value="0">0分</option>
+              <option value="15">15分</option>
+              <option value="30">30分</option>
+              <option value="45">45分</option>
+              <option value="60" selected>60分</option>
+              <option value="75">75分</option>
+              <option value="90">90分</option>
+              <option value="120">120分</option>
+            </select>
           </div>
         </div>
         <button class="btn-emerald" id="addShiftBtn">✓ 確定してシフトを追加</button>
@@ -700,10 +709,9 @@
           }
         });
 
-        // 細いコロンが消えても数字だけは確実に拾えるように設定
         await worker.setParameters({
           tessedit_char_whitelist: '0123456789/:',
-          tessedit_pageseg_mode: '11', // 疎らなテキスト（表のセル群）に最適なモード
+          tessedit_pageseg_mode: '11',
         });
 
         const { data } = await worker.recognize(dataUrl);
@@ -733,7 +741,6 @@
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            // 元の解像度が高いため、1.5倍スケールでシャープさを維持
             const scale = img.width < 800 ? 2 : 1.5;
             const w = Math.round(img.width * scale);
             const h = Math.round(img.height * scale);
@@ -745,7 +752,6 @@
             const imgData = ctx.getImageData(0, 0, w, h);
             const data = imgData.data;
 
-            // しきい値を155に引き上げ、細いコロンの点や数字の輪郭が消えないように二値化
             const binary = new Uint8Array(w * h);
             for (let i = 0; i < w * h; i++) {
               const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
@@ -753,7 +759,7 @@
               binary[i] = (brightness < 155) ? 1 : 0;
             }
 
-            // 水平方向の枠線（幅の20%以上連続する黒ピクセル）を検出して消去
+            // 水平方向の枠線を検出して消去
             const minHLine = Math.floor(w * 0.20);
             for (let y = 0; y < h; y++) {
               let run = 0;
@@ -772,7 +778,7 @@
               }
             }
 
-            // 垂直方向の枠線（高さの12%以上連続する黒ピクセル）を検出して消去
+            // 垂直方向の枠線を検出して消去
             const minVLine = Math.floor(h * 0.12);
             for (let x = 0; x < w; x++) {
               let run = 0;
@@ -807,21 +813,17 @@
       });
     }
 
-    // セル内の文字列から時刻を抽出（コロンが消えて "1736" や "045" になった場合も自動復元）
     function extractTimeFromCell(raw) {
       if (!raw) return null;
       const cleaned = raw.replace(/[^0-9:]/g, '');
-      // 1. 通常の HH:MM または H:MM
       const normal = cleaned.match(/([01]?\d|2[0-3]):([0-5]\d)/);
       if (normal) {
         return `${normal[1].padStart(2, '0')}:${normal[2]}`;
       }
-      // 2. コロンが消えて4桁の数字になった場合（例: "1736" → "17:36", "0044" → "00:44"）
       const fourDigits = cleaned.match(/^([01]\d|2[0-3])([0-5]\d)$/);
       if (fourDigits) {
         return `${fourDigits[1]}:${fourDigits[2]}`;
       }
-      // 3. コロンが消えて3桁の数字になった場合（例: "045" → "00:45", "642" → "06:42"）
       const threeDigits = cleaned.match(/^(\d)([0-5]\d)$/);
       if (threeDigits) {
         return `0${threeDigits[1]}:${threeDigits[2]}`;
@@ -829,7 +831,6 @@
       return null;
     }
 
-    // OCRが検出した単語の座標（X, Y）から、6列の勤怠表を復元して解析
     function parseWordsByGridCoordinates(words, imgW, imgH, defaultYear) {
       if (!words || words.length === 0) return [];
 
@@ -848,12 +849,10 @@
         }
       }
 
-      // 1列目（左端から24%以内）にある「月/日」のトークンを行アンカーとして抽出
       const dateAnchors = [];
       tableWords.forEach(w => {
         const cx = (w.bbox.x0 + w.bbox.x1) / 2;
         if (cx < imgW * 0.24) {
-          // スラッシュが消えて "1016" になった場合も救済
           let m = w.text.match(/(1[0-2]|0?[1-9])\/(3[01]|[12]\d|0?[1-9])/);
           if (!m) {
             const mNoSlash = w.text.match(/^(1[0-2])(3[01]|[12]\d|0[1-9])$/);
@@ -880,7 +879,6 @@
         const prev = dateAnchors[i - 1];
         const next = dateAnchors[i + 1];
 
-        // 2行セル（10/16(金\n) など）を考慮し、日付の少し上から次の日付の直前までを1行の範囲とする
         const rowTop = prev ? Math.max(curr.y0 - imgH * 0.015, (prev.cy + curr.cy) / 2) : curr.y0 - imgH * 0.025;
         const rowBottom = next ? (curr.cy + next.cy) / 2 : curr.y1 + imgH * 0.04;
 
@@ -898,7 +896,6 @@
           return cellTokens.map(t => t.text.trim()).join('');
         };
 
-        // 2枚目のスクショの実寸列比率（開始: 34~51%, 終了: 51~67%, 休憩: 67~84%）
         const startStr = extractTimeFromCell(getCellText(0.34, 0.51));
         const endStr = extractTimeFromCell(getCellText(0.51, 0.67));
         const breakStr = extractTimeFromCell(getCellText(0.67, 0.84));
@@ -1109,6 +1106,8 @@
 
       shifts.sort((a,b) => new Date(a.date) - new Date(b.date));
 
+      const breakOptions = [0, 15, 30, 45, 60, 75, 90, 120];
+
       shifts.forEach((s, idx) => {
         const div = document.createElement('div');
         const isJustSaved = (savedDate && s.date === savedDate);
@@ -1129,6 +1128,16 @@
           }
         });
 
+        // 15分単位以外の端数（OCRや過去の入力など）がある場合も選択肢に保持
+        const currentBreak = Number(s.breakMins) || 0;
+        const opts = breakOptions.includes(currentBreak)
+          ? breakOptions
+          : [...breakOptions, currentBreak].sort((a, b) => a - b);
+
+        const optionsHtml = opts.map(min =>
+          `<option value="${min}" ${currentBreak === min ? 'selected' : ''}>${min}分</option>`
+        ).join('');
+
         div.innerHTML = `
           <div class="shift-header">
             <div>
@@ -1148,7 +1157,9 @@
             </div>
             <div>
               <label style="font-size:10px; color:#666;">休憩(分)</label>
-              <input type="number" value="${s.breakMins}" class="break-inp form-control" style="padding:4px;">
+              <select class="break-inp form-control" style="padding:4px;">
+                ${optionsHtml}
+              </select>
             </div>
           </div>
           <button class="btn-emerald save-btn ${isJustSaved ? 'btn-saved' : ''}" data-idx="${idx}">
@@ -1157,15 +1168,16 @@
         `;
         container.appendChild(div);
 
-        div.querySelectorAll('input').forEach(inp => {
-          inp.addEventListener('input', () => {
-            const btn = div.querySelector('.save-btn');
-            div.classList.remove('just-saved');
-            btn.classList.remove('btn-saved');
-            btn.classList.add('btn-dirty');
-            btn.innerText = '● 変更あり（タップして確定保存）';
-          });
-        });
+        const markDirty = () => {
+          const btn = div.querySelector('.save-btn');
+          div.classList.remove('just-saved');
+          btn.classList.remove('btn-saved');
+          btn.classList.add('btn-dirty');
+          btn.innerText = '● 変更あり（タップして確定保存）';
+        };
+
+        div.querySelectorAll('input').forEach(inp => inp.addEventListener('input', markDirty));
+        div.querySelectorAll('select').forEach(sel => sel.addEventListener('change', markDirty));
 
         if (isJustSaved) {
           setTimeout(() => {
