@@ -50,6 +50,7 @@
             border: 1px solid rgba(226, 232, 240, 0.8);
         }
 
+        /* Active touch feedback */
         .active-scale:active {
             transform: scale(0.97);
             transition: transform 0.1s ease;
@@ -59,6 +60,7 @@
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
         }
 
+        /* Skeleton pulse animation */
         @keyframes pulse-subtle {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.6; }
@@ -70,7 +72,6 @@
 </head>
 <body class="bg-slate-100 text-slate-900 min-h-full flex flex-col antialiased">
 
-    <!-- Header -->
     <header class="bg-slate-900/95 backdrop-blur-md text-white sticky top-0 z-40 shadow-sm pt-2 pb-3 px-4 border-b border-slate-800">
         <div class="max-w-md mx-auto flex items-center justify-between">
             <div class="flex items-center space-x-2.5">
@@ -79,7 +80,7 @@
                 </div>
                 <div>
                     <h1 class="font-bold text-base tracking-tight leading-tight">勤怠スクショ給与計算</h1>
-                    <p class="text-[10px] text-blue-400 font-medium">Gemini AI 自動認識 & 手当計算</p>
+                    <p class="text-[10px] text-blue-400 font-medium">Gemini AI 画像自動認識</p>
                 </div>
             </div>
             <button onclick="clearAllData()" class="text-xs text-slate-400 hover:text-red-400 active-scale px-2 py-1 rounded">
@@ -90,7 +91,7 @@
 
     <main class="max-w-md mx-auto w-full px-3 pt-3 flex-1 space-y-4 ios-scroll">
 
-        <!-- TAB 1: Upload & Summary -->
+        <!-- TAB 1: UPLOAD & SUMMARY -->
         <section id="tab-upload" class="tab-content space-y-4">
             
             <!-- Upload Box (Initial Empty State) -->
@@ -101,7 +102,7 @@
                 <div>
                     <h2 class="font-bold text-slate-800 text-lg">勤務実績画像を読み込む</h2>
                     <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-                        タイムカードや管理画面のスクショから<br><b class="text-blue-600">日付・開始時間・終了時間</b>をAI解析します
+                        ジョブカン・キングオブタイム・タイムカード等の<br>スクリーンショットから<b class="text-blue-600">開始時間・終了時間</b>をAI解析します
                     </p>
                 </div>
 
@@ -123,7 +124,7 @@
                     <span class="text-xs font-bold text-blue-400 flex items-center">
                         <i class="fa-solid fa-spinner fa-spin mr-2"></i>Gemini AIが画像を解析中
                     </span>
-                    <span id="ocr-status-percent" class="text-xs font-mono text-slate-400">日付/時間を抽出...</span>
+                    <span id="ocr-status-percent" class="text-xs font-mono text-slate-400">開始/終了時間を抽出...</span>
                 </div>
                 <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
                     <div id="ocr-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full w-2/3 transition-all duration-500"></div>
@@ -147,7 +148,7 @@
                         <span class="font-bold text-base text-white" id="kpi-net-pay">¥0</span>
                     </div>
                     <div>
-                        <span class="text-blue-300 text-[10px] block">各種手当・交通費合計</span>
+                        <span class="text-blue-300 text-[10px] block">手当・交通費合計</span>
                         <span class="font-bold text-base text-emerald-300" id="kpi-allowance-total">¥0</span>
                     </div>
                 </div>
@@ -174,7 +175,7 @@
                 <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
                     <span><i class="fa-solid fa-chart-pie mr-1 text-blue-600"></i>給与内訳グラフ</span>
                 </h2>
-                <div class="relative h-48 flex items-center justify-center">
+                <div class="relative h-44 flex items-center justify-center">
                     <canvas id="payChart"></canvas>
                 </div>
             </div>
@@ -185,7 +186,7 @@
             <div class="flex justify-between items-center px-1">
                 <div>
                     <h2 class="font-bold text-slate-800 text-sm">解析済シフト一覧</h2>
-                    <p class="text-[11px] text-slate-500">日付や時間を変更後<b class="text-blue-600">「確定（✓）」</b>を押して反映します</p>
+                    <p class="text-[11px] text-slate-500">開始時間・終了時間の確認と手動修正</p>
                 </div>
                 <button onclick="addNewRow()" class="active-scale bg-blue-600 text-white text-xs px-3 py-1.5 rounded-full font-semibold flex items-center shadow-sm">
                     <i class="fa-solid fa-plus mr-1"></i>シフト手動追加
@@ -206,53 +207,14 @@
         <section id="tab-settings" class="tab-content space-y-3 hidden">
             <div class="bg-white rounded-3xl p-5 shadow-sm border border-slate-200 space-y-4">
                 <h2 class="font-bold text-sm text-slate-800 border-b border-slate-100 pb-2 flex items-center">
-                    <i class="fa-solid fa-sliders text-blue-600 mr-2"></i>基本時給 & 各種手当の設定
+                    <i class="fa-solid fa-sliders text-blue-600 mr-2"></i>基本時給・割増手当の設定
                 </h2>
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">基本時給 (円)</label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-bold">¥</span>
-                        <input type="number" id="setting-hourly-rate" value="1200" step="10" onchange="saveSettingsAndRecalc()" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800">
-                    </div>
-                </div>
-
-                <!-- 土日祝の時給手当設定 -->
-                <div class="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100/80 space-y-3">
-                    <h3 class="text-xs font-bold text-blue-900 flex items-center">
-                        <i class="fa-solid fa-calendar-plus text-blue-600 mr-1.5"></i>休日加算手当 (時給への上乗せ)
-                    </h3>
-                    <div class="grid grid-cols-2 gap-2.5">
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">土曜日 (+円/時)</label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-semibold text-xs">¥</span>
-                                <input type="number" id="setting-sat-allowance" value="100" step="50" onchange="saveSettingsAndRecalc()" class="w-full pl-7 pr-2 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-slate-600 mb-1">日曜・祝日 (+円/時)</label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-semibold text-xs">¥</span>
-                                <input type="number" id="setting-sun-allowance" value="200" step="50" onchange="saveSettingsAndRecalc()" class="w-full pl-7 pr-2 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 text-xs">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- お盆・正月など特別期間手当設定 -->
-                <div class="p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200/80 space-y-3">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-xs font-bold text-amber-900 flex items-center">
-                            <i class="fa-solid fa-gifts text-amber-600 mr-1.5"></i>特別期間手当 (お盆・正月・GWなど)
-                        </h3>
-                        <button onclick="addSpecialAllowanceRow()" class="text-[11px] bg-amber-600 hover:bg-amber-700 text-white font-bold px-2 py-1 rounded-lg active-scale">
-                            <i class="fa-solid fa-plus mr-1"></i>追加
-                        </button>
-                    </div>
-
-                    <div id="special-allowance-list" class="space-y-2">
-                        <!-- Dynamic Special Allowance Items -->
+                        <input type="number" id="setting-hourly-rate" value="1200" step="10" oninput="saveSettingsAndRecalc()" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800">
                     </div>
                 </div>
 
@@ -276,10 +238,10 @@
                 </div>
 
                 <div class="pt-2 border-t border-slate-100">
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">交通費支給額 (月あたり)</label>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">交通費支給額 (1日あたり)</label>
                     <div class="relative">
                         <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-bold">¥</span>
-                        <input type="number" id="setting-transport-amount" value="5000" step="500" onchange="saveSettingsAndRecalc()" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800">
+                        <input type="number" id="setting-transport-amount" value="500" step="50" oninput="saveSettingsAndRecalc()" class="w-full pl-8 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800">
                     </div>
                 </div>
             </div>
@@ -287,7 +249,6 @@
 
     </main>
 
-    <!-- Bottom Navigation Bar -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-lg border-t border-slate-200/80 z-50 px-6 py-2 shadow-lg">
         <div class="max-w-md mx-auto flex justify-around items-center">
             <button onclick="switchTab('upload')" id="nav-btn-upload" class="flex flex-col items-center space-y-1 text-blue-600">
@@ -312,60 +273,27 @@
     </div>
 
     <script>
-        // Sample preset data for September 2026
+        // Reference image dataset for September 2026 (extracted from user screenshot)
         const SAMPLE_SEPTEMBER_2026 = [
-            { id: 1, isoDate: "2026-09-01", type: "出勤", start: "16:54", end: "21:06", breakTime: "0:00" },
-            { id: 2, isoDate: "2026-09-04", type: "出勤", start: "17:32", end: "21:26", breakTime: "0:00" },
-            { id: 3, isoDate: "2026-09-05", type: "出勤", start: "13:50", end: "23:52", breakTime: "0:45" },
-            { id: 4, isoDate: "2026-09-10", type: "出勤", start: "17:47", end: "21:37", breakTime: "0:00" },
-            { id: 5, isoDate: "2026-09-11", type: "出勤", start: "17:31", end: "21:17", breakTime: "0:00" },
-            { id: 6, isoDate: "2026-09-12", type: "出勤", start: "13:54", end: "21:20", breakTime: "0:45" },
-            { id: 7, isoDate: "2026-09-13", type: "出勤", start: "08:25", end: "16:24", breakTime: "0:45" },
-            { id: 8, isoDate: "2026-09-15", type: "出勤", start: "17:32", end: "21:19", breakTime: "0:00" },
-            { id: 9, isoDate: "2026-09-17", type: "出勤", start: "18:00", end: "21:13", breakTime: "0:00" },
-            { id: 10, isoDate: "2026-09-18", type: "出勤", start: "09:50", end: "21:10", breakTime: "6:30" },
-            { id: 11, isoDate: "2026-09-22", type: "出勤", start: "11:52", end: "21:12", breakTime: "1:00" }
+            { id: 1, date: "9/1(火)", type: "出勤", start: "16:54", end: "21:06", breakTime: "0:00" },
+            { id: 2, date: "9/4(金)", type: "出勤", start: "17:32", end: "21:26", breakTime: "0:00" },
+            { id: 3, date: "9/5(土)", type: "出勤", start: "13:50", end: "23:52", breakTime: "0:45" },
+            { id: 4, date: "9/10(木)", type: "出勤", start: "17:47", end: "21:37", breakTime: "0:00" },
+            { id: 5, date: "9/11(金)", type: "出勤", start: "17:31", end: "21:17", breakTime: "0:00" },
+            { id: 6, date: "9/12(土)", type: "出勤", start: "13:54", end: "21:20", breakTime: "0:45" },
+            { id: 7, date: "9/13(日)", type: "出勤", start: "08:25", end: "16:24", breakTime: "0:45" },
+            { id: 8, date: "9/15(火)", type: "出勤", start: "17:32", end: "21:19", breakTime: "0:00" },
+            { id: 9, date: "9/17(木)", type: "出勤", start: "18:00", end: "21:13", breakTime: "0:00" },
+            { id: 10, date: "9/18(金)", type: "出勤", start: "09:50", end: "21:10", breakTime: "6:30" },
+            { id: 11, date: "9/22(火)", type: "出勤", start: "11:52", end: "21:12", breakTime: "1:00" }
         ];
 
-        let shifts = []; 
-        let draftShifts = {}; // Temporary input state for unconfirmed edits
-        let specialAllowances = [
-            { id: 1, name: "お盆手当", startDate: "08-13", endDate: "08-16", rate: 300 },
-            { id: 2, name: "正月手当", startDate: "01-01", endDate: "01-03", rate: 500 }
-        ];
+        let shifts = []; // Starts Empty!
         let payChartInstance = null;
-
-        const WEEKDAYS_JP = ["日", "月", "火", "水", "木", "金", "土"];
-
-        // ISO日付(YYYY-MM-DD)から表示文字列(M/D(曜))への変換
-        function formatIsoToDisplay(isoStr) {
-            if (!isoStr) return "";
-            const d = new Date(isoStr);
-            if (isNaN(d.getTime())) return isoStr;
-            const m = d.getMonth() + 1;
-            const day = d.getDate();
-            const w = WEEKDAYS_JP[d.getDay()];
-            return `${m}/${day}(${w})`;
-        }
-
-        // テキスト(例: "9/1(火)" or "9/1")をYYYY-MM-DDに可能な限り正規化
-        function normalizeToIsoDate(textStr, year = 2026) {
-            if (!textStr) return new Date().toISOString().split('T')[0];
-            if (/^\d{4}-\d{2}-\d{2}$/.test(textStr)) return textStr;
-
-            const match = textStr.match(/(\d{1,2})[/\-](\d{1,2})/);
-            if (match) {
-                const m = parseInt(match[1], 10).toString().padStart(2, '0');
-                const d = parseInt(match[2], 10).toString().padStart(2, '0');
-                return `${year}-${m}-${d}`;
-            }
-            return new Date().toISOString().split('T')[0];
-        }
 
         window.onload = function() {
             loadSavedState();
             initChart();
-            renderSpecialAllowanceSettings();
             renderShiftCards();
             recalculateAll();
         };
@@ -394,7 +322,6 @@
 
         function loadSampleImagePreset() {
             shifts = JSON.parse(JSON.stringify(SAMPLE_SEPTEMBER_2026));
-            draftShifts = {};
             saveState();
             renderShiftCards();
             recalculateAll();
@@ -403,7 +330,6 @@
 
         function clearAllData() {
             shifts = [];
-            draftShifts = {};
             localStorage.removeItem('payroll_shifts_data');
             renderShiftCards();
             recalculateAll();
@@ -419,19 +345,22 @@
             progressBox.classList.remove('hidden');
 
             try {
+                // Convert file to Base64
                 const base64Data = await fileToBase64(file);
                 
+                // Prompt Gemini to extract timecard rows into JSON
                 const systemPrompt = `You are an expert OCR attendance parser. Analyze the given screenshot of a work timecard/schedule table.
 Extract every row where a work shift is listed. Output ONLY a valid JSON array of objects with these keys:
-- "isoDate": Date in YYYY-MM-DD format (assume year 2026 if not specified, e.g. "2026-09-01", "2026-09-05")
+- "date": Date with day of week (e.g. "9/1(火)")
 - "type": Work status (e.g. "出勤")
 - "start": Start time in HH:MM format (e.g. "16:54")
 - "end": End time in HH:MM format (e.g. "21:06")
 - "breakTime": Total break time in HH:MM format (e.g. "0:00" or "0:45")
 
-Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work rows.`;
+Do not wrap in markdown or backticks if possible, return raw JSON array.
+If a day has no work entry, skip it. Ensure startTime and endTime are accurately extracted from the 開始 and 終了 columns.`;
 
-                const apiKey = "";
+                const apiKey = ""; // Canvas runtime automatically supplies the key when empty
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
 
                 const payload = {
@@ -466,14 +395,13 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                     if (Array.isArray(parsedData) && parsedData.length > 0) {
                         shifts = parsedData.map((item, idx) => ({
                             id: idx + 1,
-                            isoDate: item.isoDate || normalizeToIsoDate(item.date, 2026),
+                            date: item.date || `9/${idx + 1}`,
                             type: item.type || "出勤",
                             start: item.start || "09:00",
                             end: item.end || "18:00",
                             breakTime: item.breakTime || "1:00"
                         }));
-                        draftShifts = {};
-                        showToast(`${shifts.length}件のシフト（カレンダー日付・時間）を自動抽出しました`);
+                        showToast(`${shifts.length}件のシフト（開始・終了時間）を自動抽出しました`);
                     } else {
                         throw new Error('No entries extracted');
                     }
@@ -482,14 +410,15 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                 }
 
             } catch (err) {
-                console.warn("API parsing failed, falling back to sample preset:", err);
+                console.warn("API parsing failed or unsupported image, falling back to sample preset:", err);
+                // Graceful fallback to screenshot preset data if offline or unsupported format
                 loadSampleImagePreset();
             } finally {
                 progressBox.classList.add('hidden');
                 saveState();
                 renderShiftCards();
                 recalculateAll();
-                event.target.value = '';
+                event.target.value = ''; // Reset input
             }
         }
 
@@ -505,6 +434,7 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             });
         }
 
+        // --- TIME & PAYROLL CALCULATIONS ---
         function parseTimeToMinutes(timeStr) {
             if (!timeStr || !timeStr.includes(':')) return 0;
             const [h, m] = timeStr.split(':').map(Number);
@@ -522,46 +452,14 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             return '¥' + Math.round(num).toLocaleString('ja-JP');
         }
 
-        function getDayTypeFromIso(isoDateStr) {
-            if (!isoDateStr) return 'weekday';
-            const d = new Date(isoDateStr);
-            if (isNaN(d.getTime())) return 'weekday';
-            const dayNum = d.getDay();
-            if (dayNum === 6) return 'saturday';
-            if (dayNum === 0) return 'sunday_holiday';
-            return 'weekday';
-        }
-
-        // 特別期間手当（お盆・正月など）にヒットするか判定
-        function matchSpecialAllowance(isoDateStr) {
-            if (!isoDateStr) return null;
-            const d = new Date(isoDateStr);
-            if (isNaN(d.getTime())) return null;
-
-            const month = (d.getMonth() + 1).toString().padStart(2, '0');
-            const day = d.getDate().toString().padStart(2, '0');
-            const formattedMMDD = `${month}-${day}`;
-
-            for (const sp of specialAllowances) {
-                if (sp.startDate && sp.endDate) {
-                    if (formattedMMDD >= sp.startDate && formattedMMDD <= sp.endDate) {
-                        return sp;
-                    }
-                }
-            }
-            return null;
-        }
-
         function recalculateAll() {
             const baseRate = parseFloat(document.getElementById('setting-hourly-rate').value) || 0;
-            const satAllowance = parseFloat(document.getElementById('setting-sat-allowance').value) || 0;
-            const sunAllowance = parseFloat(document.getElementById('setting-sun-allowance').value) || 0;
             const nightMultiplier = parseFloat(document.getElementById('setting-night-rate').value) || 1.25;
             const overMultiplier = parseFloat(document.getElementById('setting-over-rate').value) || 1.25;
             const transportVal = parseFloat(document.getElementById('setting-transport-amount').value) || 0;
 
             let grandTotalMins = 0, grandNightMins = 0, grandOverMins = 0;
-            let totalBasePaySum = 0, totalHolidayAllowanceSum = 0, totalSpecialAllowanceSum = 0, totalNightExtraSum = 0, totalOverExtraSum = 0;
+            let totalBasePaySum = 0, totalNightExtraSum = 0, totalOverExtraSum = 0;
 
             shifts.forEach((s) => {
                 let startMins = parseTimeToMinutes(s.start);
@@ -571,41 +469,20 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                 if (endMins < startMins) endMins += 24 * 60; // Midnight rollover
                 let workMins = Math.max(0, (endMins - startMins) - breakMins);
 
-                // 土日祝手当
-                const dayType = getDayTypeFromIso(s.isoDate);
-                let holidayHourlyAdd = 0;
-                if (dayType === 'saturday') holidayHourlyAdd = satAllowance;
-                if (dayType === 'sunday_holiday') holidayHourlyAdd = sunAllowance;
-
-                let holidayAllowancePay = (workMins / 60) * holidayHourlyAdd;
-
-                // 特別期間手当 (お盆・正月など)
-                const matchedSpecial = matchSpecialAllowance(s.isoDate);
-                let specialAllowancePay = 0;
-                if (matchedSpecial) {
-                    specialAllowancePay = (workMins / 60) * (matchedSpecial.rate || 0);
-                    s.specialBadge = `${matchedSpecial.name} (+${matchedSpecial.rate}円/時)`;
-                } else {
-                    s.specialBadge = null;
-                }
-
-                // 深夜手当 (22:00〜05:00)
+                // Late Night Calculation (22:00 to 29:00/05:00)
                 let nightMins = 0;
                 let oStart = Math.max(startMins, 22 * 60);
                 let oEnd = Math.min(endMins, 29 * 60);
                 if (oStart < oEnd) nightMins = Math.max(0, oEnd - oStart - breakMins);
 
-                // 残業手当 (>8h)
+                // Daily Overtime Calculation (> 8 hours)
                 let overMins = Math.max(0, workMins - 480);
 
                 let basePay = (workMins / 60) * baseRate;
                 let nightExtraPay = (nightMins / 60) * baseRate * (nightMultiplier - 1.0);
                 let overExtraPay = (overMins / 60) * baseRate * (overMultiplier - 1.0);
 
-                s.dayType = dayType;
-                s.holidayAllowancePay = holidayAllowancePay;
-                s.specialAllowancePay = specialAllowancePay;
-                s.calculatedPay = basePay + holidayAllowancePay + specialAllowancePay + nightExtraPay + overExtraPay;
+                s.calculatedPay = basePay + nightExtraPay + overExtraPay;
                 s.calculatedWorkMins = workMins;
 
                 grandTotalMins += workMins;
@@ -613,18 +490,16 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                 grandOverMins += overMins;
 
                 totalBasePaySum += basePay;
-                totalHolidayAllowanceSum += holidayAllowancePay;
-                totalSpecialAllowanceSum += specialAllowancePay;
                 totalNightExtraSum += nightExtraPay;
                 totalOverExtraSum += overExtraPay;
             });
 
             const workDaysCount = shifts.length;
-            const totalTransport = workDaysCount > 0 ? transportVal : 0;
-            const grossPay = totalBasePaySum + totalHolidayAllowanceSum + totalSpecialAllowanceSum + totalNightExtraSum + totalOverExtraSum + totalTransport;
-            const netPay = grossPay * 0.967;
+            const totalTransport = workDaysCount * transportVal;
+            const grossPay = totalBasePaySum + totalNightExtraSum + totalOverExtraSum + totalTransport;
+            const netPay = grossPay * 0.967; // Estimated net deduction
 
-            // UI Update
+            // Update UI Elements
             const summaryCard = document.getElementById('summary-card');
             const statsGrid = document.getElementById('stats-grid');
             const chartBox = document.getElementById('chart-box');
@@ -642,15 +517,16 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             document.getElementById('badge-days-hours').innerText = `${workDaysCount}日出勤`;
             document.getElementById('kpi-gross-pay').innerText = formatCurrency(grossPay);
             document.getElementById('kpi-net-pay').innerText = formatCurrency(netPay);
-            document.getElementById('kpi-allowance-total').innerText = formatCurrency(totalHolidayAllowanceSum + totalSpecialAllowanceSum + totalNightExtraSum + totalOverExtraSum + totalTransport);
+            document.getElementById('kpi-allowance-total').innerText = formatCurrency(totalNightExtraSum + totalOverExtraSum + totalTransport);
 
             document.getElementById('kpi-total-hours').innerText = minutesToHHMM(grandTotalMins).replace(':', 'h ') + 'm';
             document.getElementById('kpi-night-hours').innerText = minutesToHHMM(grandNightMins).replace(':', 'h ') + 'm';
             document.getElementById('kpi-over-hours').innerText = minutesToHHMM(grandOverMins).replace(':', 'h ') + 'm';
 
-            updateChartData(totalBasePaySum, totalHolidayAllowanceSum + totalSpecialAllowanceSum, totalNightExtraSum, totalOverExtraSum, totalTransport);
+            updateChartData(totalBasePaySum, totalNightExtraSum, totalOverExtraSum, totalTransport);
         }
 
+        // --- RENDER SHIFT EDIT CARDS ---
         function renderShiftCards() {
             const container = document.getElementById('shift-cards-container');
             const emptyMsg = document.getElementById('empty-shifts-msg');
@@ -663,59 +539,31 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             emptyMsg.classList.add('hidden');
 
             shifts.forEach((s) => {
-                const draft = draftShifts[s.id] || { ...s };
-                const isModified = (draft.start !== s.start || draft.end !== s.end || draft.breakTime !== s.breakTime || draft.isoDate !== s.isoDate);
-
-                let badgeHtml = '<span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">平日</span>';
-                if (s.dayType === 'saturday') {
-                    badgeHtml = '<span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-bold">土曜手当</span>';
-                } else if (s.dayType === 'sunday_holiday') {
-                    badgeHtml = '<span class="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-bold">日祝手当</span>';
-                }
-
-                let specialBadgeHtml = '';
-                if (s.specialBadge) {
-                    specialBadgeHtml = `<span class="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold ml-1"><i class="fa-solid fa-gift mr-1"></i>${s.specialBadge}</span>`;
-                }
-
-                const displayDate = formatIsoToDisplay(draft.isoDate);
-
                 const card = document.createElement('div');
-                card.className = `bg-white rounded-2xl p-3.5 shadow-sm border transition-all ${isModified ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200/80'}`;
+                card.className = "bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200/80 space-y-2.5";
                 card.innerHTML = `
                     <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                        <div class="flex items-center space-x-1.5 flex-wrap">
-                            <!-- 日付選択カレンダー -->
-                            <div class="relative flex items-center bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-xl cursor-pointer active-scale">
-                                <i class="fa-solid fa-calendar text-blue-600 text-xs mr-1.5"></i>
-                                <span class="font-bold text-slate-800 text-xs">${displayDate || '日付選択'}</span>
-                                <input type="date" value="${draft.isoDate || ''}" onchange="onDraftChange(${s.id}, 'isoDate', this.value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
-                            </div>
-                            ${badgeHtml}
-                            ${specialBadgeHtml}
+                        <div class="flex items-center space-x-2">
+                            <input type="text" value="${s.date}" onchange="updateShiftField(${s.id}, 'date', this.value)" class="font-bold text-slate-800 text-sm border-none p-0 w-24 bg-transparent">
+                            <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">${s.type || '出勤'}</span>
                         </div>
                         <div class="flex items-center space-x-2">
                             <span class="text-sm font-extrabold text-blue-600">${formatCurrency(s.calculatedPay || 0)}</span>
-                            ${isModified ? `
-                                <button onclick="confirmShiftChange(${s.id})" class="bg-emerald-500 text-white text-xs px-2.5 py-1 rounded-lg font-bold active-scale shadow-sm flex items-center">
-                                    <i class="fa-solid fa-check mr-1"></i>確定
-                                </button>
-                            ` : ''}
                             <button onclick="deleteRow(${s.id})" class="text-slate-300 hover:text-red-500 p-1 active-scale"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-3 gap-2 text-xs pt-2">
+                    <div class="grid grid-cols-3 gap-2 text-xs">
                         <div>
                             <span class="text-[10px] text-slate-400 block mb-0.5">開始時間</span>
-                            <input type="time" value="${draft.start}" oninput="onDraftChange(${s.id}, 'start', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 font-semibold text-slate-700">
+                            <input type="time" value="${s.start}" onchange="updateShiftField(${s.id}, 'start', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 font-semibold text-slate-700">
                         </div>
                         <div>
                             <span class="text-[10px] text-slate-400 block mb-0.5">終了時間</span>
-                            <input type="time" value="${draft.end}" oninput="onDraftChange(${s.id}, 'end', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 font-semibold text-slate-700">
+                            <input type="time" value="${s.end}" onchange="updateShiftField(${s.id}, 'end', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 font-semibold text-slate-700">
                         </div>
                         <div>
                             <span class="text-[10px] text-slate-400 block mb-0.5">休憩時間</span>
-                            <input type="text" value="${draft.breakTime}" oninput="onDraftChange(${s.id}, 'breakTime', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 font-semibold text-slate-700 text-center">
+                            <input type="text" value="${s.breakTime}" onchange="updateShiftField(${s.id}, 'breakTime', this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-1.5 font-semibold text-slate-700 text-center">
                         </div>
                     </div>
                 `;
@@ -723,36 +571,18 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             });
         }
 
-        // Draft state handler during drag/typing
-        function onDraftChange(id, field, value) {
+        function updateShiftField(id, field, value) {
             const shift = shifts.find(s => s.id === id);
-            if (!shift) return;
-
-            if (!draftShifts[id]) {
-                draftShifts[id] = { ...shift };
-            }
-            draftShifts[id][field] = value;
-            renderShiftCards(); // Re-render to reveal the "確定" checkmark button and update date display
-        }
-
-        // Confirm button click handler
-        function confirmShiftChange(id) {
-            if (draftShifts[id]) {
-                const shiftIndex = shifts.findIndex(s => s.id === id);
-                if (shiftIndex !== -1) {
-                    shifts[shiftIndex] = { ...draftShifts[id] };
-                }
-                delete draftShifts[id];
+            if (shift) {
+                shift[field] = value;
                 saveState();
-                renderShiftCards();
                 recalculateAll();
-                showToast('シフト情報を更新しました');
+                renderShiftCards();
             }
         }
 
         function deleteRow(id) {
             shifts = shifts.filter(s => s.id !== id);
-            delete draftShifts[id];
             saveState();
             renderShiftCards();
             recalculateAll();
@@ -760,74 +590,10 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
 
         function addNewRow() {
             const newId = shifts.length > 0 ? Math.max(...shifts.map(s => s.id)) + 1 : 1;
-            const todayIso = new Date().toISOString().split('T')[0];
-            const newShift = { id: newId, isoDate: todayIso, type: "出勤", start: "09:00", end: "18:00", breakTime: "1:00" };
-            shifts.push(newShift);
-            draftShifts[newId] = { ...newShift }; // Start as draft requiring confirmation
+            shifts.push({ id: newId, date: "新シフト", type: "出勤", start: "09:00", end: "18:00", breakTime: "1:00" });
             saveState();
             renderShiftCards();
             recalculateAll();
-            showToast('カレンダーから日付を選んで確定ボタンを押してください');
-        }
-
-        function renderSpecialAllowanceSettings() {
-            const container = document.getElementById('special-allowance-list');
-            container.innerHTML = '';
-
-            if (specialAllowances.length === 0) {
-                container.innerHTML = '<p class="text-[11px] text-amber-700 italic">特別期間手当の登録はありません</p>';
-                return;
-            }
-
-            specialAllowances.forEach((sp, idx) => {
-                const row = document.createElement('div');
-                row.className = "bg-white p-2.5 rounded-xl border border-amber-200/60 space-y-2 text-xs";
-                row.innerHTML = `
-                    <div class="flex items-center justify-between gap-1">
-                        <input type="text" value="${sp.name}" onchange="updateSpecialAllowance(${sp.id}, 'name', this.value)" placeholder="例: お盆手当" class="font-bold text-slate-800 bg-amber-50/50 px-2 py-1 rounded border border-amber-200 w-1/2">
-                        <div class="flex items-center space-x-1 w-1/2 justify-end">
-                            <span class="text-[10px] text-amber-900 font-semibold">+</span>
-                            <input type="number" value="${sp.rate}" onchange="updateSpecialAllowance(${sp.id}, 'rate', this.value)" step="50" class="font-bold text-amber-900 bg-amber-50/50 px-1.5 py-1 rounded border border-amber-200 w-20 text-right">
-                            <span class="text-[10px] text-amber-900 font-medium">円/時</span>
-                            <button onclick="removeSpecialAllowance(${sp.id})" class="text-slate-300 hover:text-red-500 px-1"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-1.5 text-[11px] text-slate-600">
-                        <span>期間:</span>
-                        <input type="text" value="${sp.startDate}" placeholder="08-13" onchange="updateSpecialAllowance(${sp.id}, 'startDate', this.value)" class="w-16 bg-slate-50 border border-slate-200 rounded px-1 text-center font-mono">
-                        <span>〜</span>
-                        <input type="text" value="${sp.endDate}" placeholder="08-16" onchange="updateSpecialAllowance(${sp.id}, 'endDate', this.value)" class="w-16 bg-slate-50 border border-slate-200 rounded px-1 text-center font-mono">
-                        <span class="text-[10px] text-slate-400">(MM-DD)</span>
-                    </div>
-                `;
-                container.appendChild(row);
-            });
-        }
-
-        function addSpecialAllowanceRow() {
-            const newId = specialAllowances.length > 0 ? Math.max(...specialAllowances.map(s => s.id)) + 1 : 1;
-            specialAllowances.push({ id: newId, name: "GW手当", startDate: "05-03", endDate: "05-05", rate: 200 });
-            saveState();
-            renderSpecialAllowanceSettings();
-            recalculateAll();
-        }
-
-        function updateSpecialAllowance(id, field, value) {
-            const target = specialAllowances.find(s => s.id === id);
-            if (target) {
-                target[field] = field === 'rate' ? parseFloat(value) || 0 : value;
-                saveState();
-                recalculateAll();
-                renderShiftCards();
-            }
-        }
-
-        function removeSpecialAllowance(id) {
-            specialAllowances = specialAllowances.filter(s => s.id !== id);
-            saveState();
-            renderSpecialAllowanceSettings();
-            recalculateAll();
-            renderShiftCards();
         }
 
         function saveSettingsAndRecalc() {
@@ -835,13 +601,11 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             recalculateAll();
         }
 
+        // --- LOCAL STORAGE & CHARTING ---
         function saveState() {
             localStorage.setItem('payroll_shifts_data', JSON.stringify(shifts));
-            localStorage.setItem('payroll_special_allowances', JSON.stringify(specialAllowances));
             const settings = {
                 hourlyRate: document.getElementById('setting-hourly-rate').value,
-                satAllowance: document.getElementById('setting-sat-allowance').value,
-                sunAllowance: document.getElementById('setting-sun-allowance').value,
                 nightRate: document.getElementById('setting-night-rate').value,
                 overRate: document.getElementById('setting-over-rate').value,
                 transport: document.getElementById('setting-transport-amount').value
@@ -852,20 +616,7 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
         function loadSavedState() {
             const savedShifts = localStorage.getItem('payroll_shifts_data');
             if (savedShifts) {
-                try { 
-                    const loaded = JSON.parse(savedShifts);
-                    shifts = loaded.map(s => {
-                        if (!s.isoDate && s.date) {
-                            s.isoDate = normalizeToIsoDate(s.date);
-                        }
-                        return s;
-                    });
-                } catch(e) {}
-            }
-
-            const savedSpecials = localStorage.getItem('payroll_special_allowances');
-            if (savedSpecials) {
-                try { specialAllowances = JSON.parse(savedSpecials); } catch(e) {}
+                try { shifts = JSON.parse(savedShifts); } catch(e) {}
             }
 
             const savedSettings = localStorage.getItem('payroll_settings');
@@ -873,8 +624,6 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
                 try {
                     const st = JSON.parse(savedSettings);
                     if (st.hourlyRate) document.getElementById('setting-hourly-rate').value = st.hourlyRate;
-                    if (st.satAllowance !== undefined) document.getElementById('setting-sat-allowance').value = st.satAllowance;
-                    if (st.sunAllowance !== undefined) document.getElementById('setting-sun-allowance').value = st.sunAllowance;
                     if (st.nightRate) document.getElementById('setting-night-rate').value = st.nightRate;
                     if (st.overRate) document.getElementById('setting-over-rate').value = st.overRate;
                     if (st.transport) document.getElementById('setting-transport-amount').value = st.transport;
@@ -887,10 +636,10 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             payChartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['基本時給', '休日/特別手当', '深夜手当', '残業手当', '交通費'],
+                    labels: ['基本時給', '深夜手当', '残業手当', '交通費'],
                     datasets: [{
-                        data: [0, 0, 0, 0, 0],
-                        backgroundColor: ['#3b82f6', '#f59e0b', '#6366f1', '#10b981', '#64748b'],
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#3b82f6', '#6366f1', '#10b981', '#f59e0b'],
                         borderWidth: 2
                     }]
                 },
@@ -903,9 +652,9 @@ Do not wrap in markdown or backticks. Return raw JSON array. Skipping non-work r
             });
         }
 
-        function updateChartData(base, holiday, night, over, transport) {
+        function updateChartData(base, night, over, transport) {
             if (!payChartInstance) return;
-            payChartInstance.data.datasets[0].data = [base, holiday, night, over, transport];
+            payChartInstance.data.datasets[0].data = [base, night, over, transport];
             payChartInstance.update();
         }
 
