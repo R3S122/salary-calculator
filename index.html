@@ -395,4 +395,657 @@
     <!-- JSが動作すると自動的に非表示になる警告メッセージ -->
     <div id="jsWarningBox" class="js-warning">
       ⚠️ <strong>アプリ機能が制限されたプレビュー画面で開かれています</strong><br>
-      iPhoneの「ファイル」アプリ内のプレ
+      iPhoneの「ファイル」アプリ内のプレビュー画面では計算や画像読み込みが動作しません。右上の共有ボタン（または「…」）から<strong>ブラウザ（Safari等）</strong>で開くか、無料のWeb公開（Vercel / GitHub Pages）に配置して開いてください。
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="card">
+      <div class="summary-grid">
+        <div class="stat-box">
+          <div class="stat-label">予想総支給額 (税込)</div>
+          <div class="stat-val" id="totalPay">¥0</div>
+          <div class="stat-sub" id="workDays">0日出勤</div>
+        </div>
+        <div class="stat-box" style="background:#f0fdf4;">
+          <div class="stat-label" style="color:#166534;">概算手取り (推測)</div>
+          <div class="stat-val" style="color:#15803d;" id="netPay">¥0</div>
+          <div class="stat-sub">控除想定: 15%</div>
+        </div>
+      </div>
+      <div class="detail-list">
+        <div class="detail-row"><span>総労働時間</span><strong id="totalHours">0h 0m</strong></div>
+        <div class="detail-row"><span>深夜時間 (22時〜5時)</span><strong id="nightHours">0h 0m</strong></div>
+        <div class="detail-row"><span>残業時間 (8h超)</span><strong id="overHours">0h 0m</strong></div>
+        <div class="detail-row"><span>手当・交通費合計</span><strong id="totalAllowances">¥0</strong></div>
+      </div>
+    </div>
+
+    <!-- タブナビゲーション -->
+    <div class="tab-nav">
+      <label for="radio-upload" class="tab-label">📸 画像読み込み</label>
+      <label for="radio-shifts" class="tab-label">📅 シフト一覧</label>
+      <label for="radio-settings" class="tab-label">⚙️ 給与設定</label>
+    </div>
+
+    <!-- PANEL 1: 画像読み込み -->
+    <div id="panel-upload" class="tab-panel">
+      <div class="card">
+        <div class="card-title">勤務実績のスクショを読み込む</div>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
+          勤務表のスクリーンショットを選択すると、表の行から「日付・開始・終了・休憩」を自動読み取りします。
+        </p>
+
+        <div class="input-group" style="margin-bottom:12px;">
+          <label>対象年</label>
+          <input type="number" inputmode="numeric" id="targetYear" class="input-control" value="2026">
+        </div>
+
+        <input type="file" id="imageFileInput" accept="image/*" style="display:none;">
+        <label for="imageFileInput" class="upload-label">
+          <div style="font-size:30px; margin-bottom:4px;">📷</div>
+          <div style="font-weight:700; color:var(--primary); font-size:15px;">ここをタップしてスクショを選択</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">写真ライブラリ / ファイルから選択</div>
+        </label>
+
+        <div id="ocrStatus" class="ocr-status">
+          <div id="ocrStatusText">画像を解析しています...</div>
+          <div class="progress-bar-bg">
+            <div id="ocrProgress" class="progress-bar-fill"></div>
+          </div>
+        </div>
+
+        <div id="previewBox" class="preview-box">
+          <img id="previewImg" src="" alt="プレビュー">
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 2: シフト一覧 -->
+    <div id="panel-shifts" class="tab-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span style="font-size:14px; font-weight:700;">登録シフト一覧</span>
+        <div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnClearAll" style="margin-right:6px; color:var(--danger);">全消去</button>
+          <button type="button" class="btn btn-primary btn-sm" id="btnAddNew">＋ 手動追加</button>
+        </div>
+      </div>
+      <div id="shiftList">
+        <div style="text-align:center; color:var(--text-muted); padding:32px; background:#fff; border-radius:12px; border:1px solid var(--border);">
+          登録されているシフトはありません。<br>「📸 画像読み込み」からスクショを選択してください。
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3: 給与設定 -->
+    <div id="panel-settings" class="tab-panel">
+      <div class="card">
+        <div class="card-title">基本給与設定</div>
+        <div class="input-group" style="margin-bottom:12px;">
+          <label>基本時給 (円)</label>
+          <input type="number" inputmode="numeric" id="cfg-base" class="input-control" value="1100">
+        </div>
+        <div class="input-group" style="margin-bottom:12px;">
+          <label>月額 交通費 (円/月)</label>
+          <input type="number" inputmode="numeric" id="cfg-transit" class="input-control" value="5000">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">曜日・休日手当設定 (時給加算)</div>
+        <div class="input-group" style="margin-bottom:12px;">
+          <label>土曜日手当 (+円/時間)</label>
+          <input type="number" inputmode="numeric" id="cfg-sat" class="input-control" value="50">
+        </div>
+        <div class="input-group" style="margin-bottom:12px;">
+          <label>日・祝日手当 (+円/時間)</label>
+          <input type="number" inputmode="numeric" id="cfg-sun" class="input-control" value="100">
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">特別期間手当 (お盆・正月等)</div>
+        <div class="input-group" style="margin-bottom:8px;">
+          <label>手当名称 (例: お盆手当)</label>
+          <input type="text" id="cfg-sp-name" class="input-control" value="お盆・正月手当">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+          <div class="input-group">
+            <label>開始日</label>
+            <input type="date" id="cfg-sp-start" class="input-control" value="2026-08-13">
+          </div>
+          <div class="input-group">
+            <label>終了日</label>
+            <input type="date" id="cfg-sp-end" class="input-control" value="2026-08-16">
+          </div>
+        </div>
+        <div class="input-group" style="margin-bottom:12px;">
+          <label>加算手当 (+円/時間)</label>
+          <input type="number" inputmode="numeric" id="cfg-sp-allow" class="input-control" value="200">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 固定ボトムナビ -->
+  <div class="bottom-nav">
+    <label for="radio-upload" class="bottom-label">📸 読み込み</label>
+    <label for="radio-shifts" class="bottom-label">📅 シフト</label>
+    <label for="radio-settings" class="bottom-label">⚙️ 設定</label>
+  </div>
+
+  <canvas id="ocrCanvas" style="display:none;"></canvas>
+
+  <script>
+    (function() {
+      // JavaScriptが正常に起動したら警告バナーを消去
+      const warnBox = document.getElementById('jsWarningBox');
+      if (warnBox) warnBox.style.display = 'none';
+
+      let shifts = [];
+      let config = {
+        baseRate: 1100,
+        transitMonthly: 5000,
+        satAllowance: 50,
+        sunAllowance: 100,
+        spName: 'お盆・正月手当',
+        spStart: '2026-08-13',
+        spEnd: '2026-08-16',
+        spAllowance: 200
+      };
+
+      // イベント登録
+      document.getElementById('imageFileInput').addEventListener('change', function(e) {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          processImageFile(file);
+        }
+        e.target.value = '';
+      });
+
+      document.getElementById('btnAddNew').addEventListener('click', addNewShift);
+      document.getElementById('btnClearAll').addEventListener('click', clearAllShifts);
+
+      ['cfg-base', 'cfg-transit', 'cfg-sat', 'cfg-sun', 'cfg-sp-name', 'cfg-sp-start', 'cfg-sp-end', 'cfg-sp-allow'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', saveConfig);
+      });
+
+      window.addEventListener('paste', function(e) {
+        const items = (e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData))?.items;
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') === 0) {
+            processImageFile(items[i].getAsFile());
+          }
+        }
+      });
+
+      function switchTab(tabName) {
+        const radio = document.getElementById(`radio-${tabName}`);
+        if (radio) radio.checked = true;
+      }
+
+      function saveConfig() {
+        config.baseRate = Number(document.getElementById('cfg-base').value) || 0;
+        config.transitMonthly = Number(document.getElementById('cfg-transit').value) || 0;
+        config.satAllowance = Number(document.getElementById('cfg-sat').value) || 0;
+        config.sunAllowance = Number(document.getElementById('cfg-sun').value) || 0;
+        config.spName = document.getElementById('cfg-sp-name').value;
+        config.spStart = document.getElementById('cfg-sp-start').value;
+        config.spEnd = document.getElementById('cfg-sp-end').value;
+        config.spAllowance = Number(document.getElementById('cfg-sp-allow').value) || 0;
+        calculateAll();
+      }
+
+      function timeToMins(str) {
+        if (!str) return 0;
+        const [h, m] = str.split(':').map(Number);
+        return (h || 0) * 60 + (m || 0);
+      }
+
+      function minsToHM(mins) {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${h}h ${m}m`;
+      }
+
+      function calculateAll() {
+        let totalPay = 0;
+        let totalMins = 0;
+        let nightMins = 0;
+        let overMins = 0;
+        let totalAllowances = 0;
+
+        shifts.forEach(s => {
+          const start = timeToMins(s.start);
+          let end = timeToMins(s.end);
+          if (end < start) end += 24 * 60;
+
+          const breakM = timeToMins(s.breakTime);
+          const workM = Math.max(0, end - start - breakM);
+
+          let shiftPay = (workM / 60) * config.baseRate;
+
+          // 深夜（22:00〜29:00）
+          const nightStart = 22 * 60;
+          const nightEnd = 29 * 60;
+          let nM = 0;
+          if (end > nightStart) {
+            const overlapS = Math.max(start, nightStart);
+            const overlapE = Math.min(end, nightEnd);
+            nM = Math.max(0, overlapE - overlapS);
+          }
+          shiftPay += (nM / 60) * (config.baseRate * 0.25);
+
+          // 残業 (8h超)
+          let oM = Math.max(0, workM - 8 * 60);
+          shiftPay += (oM / 60) * (config.baseRate * 0.25);
+
+          // 休日・特別手当
+          const dateObj = new Date(s.date + 'T00:00:00');
+          const day = dateObj.getDay();
+          let dayAllowance = 0;
+
+          if (day === 6) dayAllowance += config.satAllowance;
+          if (day === 0) dayAllowance += config.sunAllowance;
+
+          if (s.date >= config.spStart && s.date <= config.spEnd) {
+            dayAllowance += config.spAllowance;
+          }
+
+          const holPay = (workM / 60) * dayAllowance;
+          shiftPay += holPay;
+
+          totalPay += shiftPay;
+          totalMins += workM;
+          nightMins += nM;
+          overMins += oM;
+          totalAllowances += holPay;
+        });
+
+        if (shifts.length > 0) {
+          totalPay += config.transitMonthly;
+          totalAllowances += config.transitMonthly;
+        }
+
+        document.getElementById('totalPay').innerText = `¥${Math.floor(totalPay).toLocaleString()}`;
+        document.getElementById('netPay').innerText = `¥${Math.floor(totalPay * 0.85).toLocaleString()}`;
+        document.getElementById('workDays').innerText = `${shifts.length}日出勤`;
+        document.getElementById('totalHours').innerText = minsToHM(totalMins);
+        document.getElementById('nightHours').innerText = minsToHM(nightMins);
+        document.getElementById('overHours').innerText = minsToHM(overMins);
+        document.getElementById('totalAllowances').innerText = `¥${Math.floor(totalAllowances).toLocaleString()}`;
+
+        renderShiftList();
+      }
+
+      function renderShiftList() {
+        const container = document.getElementById('shiftList');
+        if (shifts.length === 0) {
+          container.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:32px; background:#fff; border-radius:12px; border:1px solid var(--border);">登録されているシフトはありません。<br>「📸 画像読み込み」からスクショを選択してください。</div>';
+          return;
+        }
+
+        container.innerHTML = shifts.map((s, idx) => {
+          const d = new Date(s.date + 'T00:00:00');
+          let badge = '';
+          if (d.getDay() === 6) badge += `<span class="badge badge-sat">土曜手当</span>`;
+          if (d.getDay() === 0) badge += `<span class="badge badge-sun">日祝手当</span>`;
+          if (s.date >= config.spStart && s.date <= config.spEnd) badge += `<span class="badge badge-sp">${config.spName}</span>`;
+
+          return `
+            <div class="shift-item">
+              <div class="shift-header">
+                <input type="date" id="inp-date-${idx}" value="${s.date}" class="input-control" style="width:auto; font-weight:bold;">
+                <div>${badge}</div>
+              </div>
+              <div class="time-grid">
+                <div class="input-group">
+                  <label>開始時間</label>
+                  <input type="time" id="inp-start-${idx}" value="${s.start}" class="input-control">
+                </div>
+                <div class="input-group">
+                  <label>終了時間</label>
+                  <input type="time" id="inp-end-${idx}" value="${s.end}" class="input-control">
+                </div>
+              </div>
+              <div class="input-group">
+                <label>休憩時間 (15分刻み)</label>
+                <input type="time" id="inp-break-${idx}" step="900" value="${s.breakTime}" class="input-control">
+                <div class="break-quick-select">
+                  <button type="button" class="quick-btn" data-action="break" data-idx="${idx}" data-val="00:00">0分</button>
+                  <button type="button" class="quick-btn" data-action="break" data-idx="${idx}" data-val="00:15">15分</button>
+                  <button type="button" class="quick-btn" data-action="break" data-idx="${idx}" data-val="00:30">30分</button>
+                  <button type="button" class="quick-btn" data-action="break" data-idx="${idx}" data-val="00:45">45分</button>
+                  <button type="button" class="quick-btn" data-action="break" data-idx="${idx}" data-val="01:00">1時間</button>
+                </div>
+              </div>
+              <div class="confirm-bar">
+                <button type="button" class="btn-sm btn-secondary" data-action="delete" data-idx="${idx}" style="margin-right:8px; color:var(--danger);">削除</button>
+                <button type="button" class="btn-check" data-action="confirm" data-idx="${idx}">確定 ✓</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // イベント委譲で各ボタンを確実に動作させる
+        container.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const action = this.getAttribute('data-action');
+            const idx = Number(this.getAttribute('data-idx'));
+            if (action === 'break') {
+              const el = document.getElementById(`inp-break-${idx}`);
+              if (el) el.value = this.getAttribute('data-val');
+            } else if (action === 'delete') {
+              shifts.splice(idx, 1);
+              calculateAll();
+            } else if (action === 'confirm') {
+              shifts[idx].date = document.getElementById(`inp-date-${idx}`).value;
+              shifts[idx].start = document.getElementById(`inp-start-${idx}`).value;
+              shifts[idx].end = document.getElementById(`inp-end-${idx}`).value;
+              shifts[idx].breakTime = document.getElementById(`inp-break-${idx}`).value;
+              calculateAll();
+            }
+          });
+        });
+      }
+
+      function clearAllShifts() {
+        shifts = [];
+        calculateAll();
+      }
+
+      function addNewShift() {
+        const today = new Date().toISOString().split('T')[0];
+        shifts.unshift({
+          date: today,
+          start: '09:00',
+          end: '18:00',
+          breakTime: '01:00'
+        });
+        switchTab('shifts');
+        calculateAll();
+      }
+
+      function processImageFile(file) {
+        const statusBox = document.getElementById('ocrStatus');
+        const statusText = document.getElementById('ocrStatusText');
+        const progressBar = document.getElementById('ocrProgress');
+        const previewBox = document.getElementById('previewBox');
+        const previewImg = document.getElementById('previewImg');
+
+        statusBox.style.display = 'block';
+        statusText.innerText = '画像を読み込んでいます...';
+        progressBar.style.width = '25%';
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const img = new Image();
+          img.onload = function() {
+            previewImg.src = event.target.result;
+            previewBox.style.display = 'block';
+
+            statusText.innerText = '表のセルと数値を解析中...';
+            progressBar.style.width = '70%';
+
+            setTimeout(() => {
+              try {
+                const extracted = analyzeTimecardImage(img);
+                progressBar.style.width = '100%';
+
+                if (extracted.length > 0) {
+                  shifts = extracted;
+                  statusText.innerText = `✅ ${extracted.length}件の勤務データを検出しました！`;
+                  setTimeout(() => {
+                    statusBox.style.display = 'none';
+                    switchTab('shifts');
+                    calculateAll();
+                  }, 600);
+                } else {
+                  statusText.innerText = '⚠️ 表内の勤務データを自動特定できませんでした。「シフト一覧」から手動追加も可能です。';
+                }
+              } catch (err) {
+                statusText.innerText = '解析エラーが発生しました。別の画像でお試しください。';
+              }
+            }, 120);
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // 内蔵ピクセル解析＆デジタル数字認識エンジン
+      function analyzeTimecardImage(img) {
+        const canvas = document.getElementById('ocrCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        const targetW = 750;
+        const scale = targetW / img.width;
+        const targetH = Math.round(img.height * scale);
+        canvas.width = targetW;
+        canvas.height = targetH;
+
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+        const imageData = ctx.getImageData(0, 0, targetW, targetH);
+        const data = imageData.data;
+
+        const binary = new Uint8Array(targetW * targetH);
+        for (let i = 0; i < data.length; i += 4) {
+          const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          binary[i / 4] = lum < 160 ? 1 : 0;
+        }
+
+        // 横罫線検出
+        const rowLines = [];
+        for (let y = Math.floor(targetH * 0.10); y < Math.floor(targetH * 0.98); y++) {
+          let blackCount = 0;
+          for (let x = Math.floor(targetW * 0.05); x < Math.floor(targetW * 0.95); x++) {
+            if (binary[y * targetW + x] === 1) blackCount++;
+          }
+          if (blackCount > targetW * 0.55) {
+            if (rowLines.length === 0 || y - rowLines[rowLines.length - 1] > 14) {
+              rowLines.push(y);
+            }
+          }
+        }
+
+        // 縦罫線検出
+        const colLines = [];
+        if (rowLines.length >= 2) {
+          const yStart = rowLines[0];
+          const yEnd = rowLines[rowLines.length - 1];
+          const tableH = yEnd - yStart;
+          for (let x = 8; x < targetW - 8; x++) {
+            let blackCount = 0;
+            for (let y = yStart; y < yEnd; y++) {
+              if (binary[y * targetW + x] === 1) blackCount++;
+            }
+            if (blackCount > tableH * 0.55) {
+              if (colLines.length === 0 || x - colLines[colLines.length - 1] > 20) {
+                colLines.push(x);
+              }
+            }
+          }
+        }
+
+        const year = document.getElementById('targetYear').value || '2026';
+        const results = [];
+
+        if (rowLines.length >= 3 && colLines.length >= 5) {
+          for (let r = 0; r < rowLines.length - 1; r++) {
+            const y1 = rowLines[r] + 3;
+            const y2 = rowLines[r + 1] - 3;
+            if (y2 - y1 < 12) continue;
+
+            const dateText = recognizeCellDigits(binary, targetW, colLines[0] + 4, y1, colLines[1] - 4, y2, true);
+            const startText = recognizeCellDigits(binary, targetW, colLines[2] + 4, y1, colLines[3] - 4, y2, false);
+            const endText = recognizeCellDigits(binary, targetW, colLines[3] + 4, y1, colLines[4] - 4, y2, false);
+            const breakText = colLines.length >= 6
+              ? recognizeCellDigits(binary, targetW, colLines[4] + 4, y1, colLines[5] - 4, y2, false)
+              : '00:00';
+
+            const parsedDate = parseDateToken(dateText, year);
+            const parsedStart = parseTimeToken(startText);
+            const parsedEnd = parseTimeToken(endText);
+            const parsedBreak = parseTimeToken(breakText) || '00:00';
+
+            if (parsedDate && parsedStart && parsedEnd) {
+              results.push({
+                date: parsedDate,
+                start: parsedStart,
+                end: parsedEnd,
+                breakTime: parsedBreak
+              });
+            }
+          }
+        }
+        return results;
+      }
+
+      function recognizeCellDigits(binary, stride, x1, y1, x2, y2, isDateCol) {
+        const w = x2 - x1;
+        const h = y2 - y1;
+        if (w <= 4 || h <= 4) return '';
+
+        const colHasInk = new Uint8Array(w);
+        for (let x = 0; x < w; x++) {
+          for (let y = 0; y < h; y++) {
+            if (binary[(y1 + y) * stride + (x1 + x)] === 1) {
+              colHasInk[x] = 1;
+              break;
+            }
+          }
+        }
+
+        const blobs = [];
+        let inBlob = false;
+        let bx1 = 0;
+        for (let x = 0; x < w; x++) {
+          if (colHasInk[x] && !inBlob) {
+            inBlob = true;
+            bx1 = x;
+          } else if (!colHasInk[x] && inBlob) {
+            inBlob = false;
+            blobs.push([bx1, x - 1]);
+          }
+        }
+        if (inBlob) blobs.push([bx1, w - 1]);
+
+        let str = '';
+        for (const [sx, ex] of blobs) {
+          const bw = ex - sx + 1;
+          let sy = h, ey = 0, inkCount = 0;
+          for (let y = 0; y < h; y++) {
+            for (let x = sx; x <= ex; x++) {
+              if (binary[(y1 + y) * stride + (x1 + x)] === 1) {
+                if (y < sy) sy = y;
+                if (y > ey) ey = y;
+                inkCount++;
+              }
+            }
+          }
+          const bh = ey - sy + 1;
+          if (bh < 4) continue;
+
+          if (isDateCol && bh > h * 0.65 && bw <= 5) {
+            if (str.includes('/')) break;
+          }
+
+          if (!isDateCol && bw <= 5 && bh >= 6 && bh <= h * 0.65) {
+            str += ':';
+            continue;
+          }
+
+          if (isDateCol && bw >= 4 && bw <= 11 && bh >= h * 0.45) {
+            const topRight = binary[(y1 + sy + 1) * stride + (x1 + ex - 1)];
+            const botLeft = binary[(y1 + ey - 1) * stride + (x1 + sx + 1)];
+            const center = binary[(y1 + Math.floor((sy + ey) / 2)) * stride + (x1 + Math.floor((sx + ex) / 2))];
+            if (topRight === 1 && botLeft === 1 && center === 1 && inkCount / (bw * bh) < 0.42) {
+              str += '/';
+              continue;
+            }
+          }
+
+          if (bw >= 3 && bh >= 8) {
+            str += classifyDigit(binary, stride, x1 + sx, y1 + sy, bw, bh);
+          }
+        }
+        return str;
+      }
+
+      function classifyDigit(binary, stride, x0, y0, w, h) {
+        if (w / h < 0.36) return '1';
+
+        const gw = 8, gh = 12;
+        const grid = new Uint8Array(gw * gh);
+        for (let gy = 0; gy < gh; gy++) {
+          const py = y0 + Math.min(h - 1, Math.floor((gy + 0.5) * h / gh));
+          for (let gx = 0; gx < gw; gx++) {
+            const px = x0 + Math.min(w - 1, Math.floor((gx + 0.5) * w / gw));
+            grid[gy * gw + gx] = binary[py * stride + px];
+          }
+        }
+
+        const templates = {
+          '0': [0,1,1,1,1,1,1,0, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 0,1,1,1,1,1,1,0],
+          '2': [0,1,1,1,1,1,1,0, 1,1,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,1,1,0, 0,0,0,1,1,1,0,0, 0,0,1,1,0,0,0,0, 0,1,1,0,0,0,0,0, 1,1,0,0,0,0,0,0, 1,1,0,0,0,0,0,0, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1],
+          '3': [0,1,1,1,1,1,1,0, 1,1,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,1,1,0, 0,0,1,1,1,1,0,0, 0,0,0,0,0,1,1,0, 0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 0,1,1,1,1,1,1,0],
+          '4': [0,0,0,0,1,1,1,0, 0,0,0,1,1,1,1,0, 0,0,1,1,0,1,1,0, 0,1,1,0,0,1,1,0, 1,1,0,0,0,1,1,0, 1,1,0,0,0,1,1,0, 1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 0,0,0,0,0,1,1,0, 0,0,0,0,0,1,1,0, 0,0,0,0,0,1,1,0, 0,0,0,0,0,1,1,0],
+          '5': [1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 1,1,0,0,0,0,0,0, 1,1,0,0,0,0,0,0, 1,1,1,1,1,1,0,0, 1,1,0,0,0,1,1,0, 0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 0,1,1,1,1,1,1,0],
+          '6': [0,0,1,1,1,1,1,0, 0,1,1,0,0,0,1,1, 1,1,0,0,0,0,0,0, 1,1,0,0,0,0,0,0, 1,1,1,1,1,1,1,0, 1,1,1,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 0,1,1,1,1,1,1,0],
+          '7': [1,1,1,1,1,1,1,1, 1,1,1,1,1,1,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,1,1,0, 0,0,0,0,0,1,1,0, 0,0,0,0,1,1,0,0, 0,0,0,0,1,1,0,0, 0,0,0,1,1,0,0,0, 0,0,0,1,1,0,0,0, 0,0,1,1,0,0,0,0, 0,0,1,1,0,0,0,0, 0,0,1,1,0,0,0,0],
+          '8': [0,1,1,1,1,1,1,0, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 0,1,1,0,0,1,1,0, 0,0,1,1,1,1,0,0, 0,1,1,0,0,1,1,0, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 0,1,1,1,1,1,1,0],
+          '9': [0,1,1,1,1,1,1,0, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 1,1,0,0,0,1,1,1, 0,1,1,1,1,1,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 0,0,0,0,0,0,1,1, 1,1,0,0,0,0,1,1, 0,1,1,1,1,1,1,0]
+        };
+
+        let bestDigit = '0';
+        let bestScore = -999;
+
+        for (const [digit, tpl] of Object.entries(templates)) {
+          let score = 0;
+          for (let i = 0; i < grid.length; i++) {
+            if (grid[i] === tpl[i]) {
+              score += (grid[i] === 1 ? 2 : 1);
+            } else {
+              score -= 1;
+            }
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            bestDigit = digit;
+          }
+        }
+        return bestDigit;
+      }
+
+      function parseDateToken(raw, year) {
+        const m = raw.match(/(\d{1,2})\/(\d{1,2})/);
+        if (!m) return null;
+        const month = Number(m[1]);
+        const day = Number(m[2]);
+        if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+
+      function parseTimeToken(raw) {
+        let m = raw.match(/(\d{1,2}):(\d{2})/);
+        if (!m) {
+          const digits = raw.replace(/\D/g, '');
+          if (digits.length === 4) {
+            m = [null, digits.slice(0, 2), digits.slice(2, 4)];
+          } else if (digits.length === 3) {
+            m = [null, digits.slice(0, 1), digits.slice(1, 3)];
+          }
+        }
+        if (!m) return null;
+        const hh = Number(m[1]);
+        const mm = Number(m[2]);
+        if (hh > 29 || mm > 59) return null;
+        return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+      }
+
+      calculateAll();
+    })();
+  </script>
+</body>
+</html>
